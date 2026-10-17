@@ -93,16 +93,17 @@ class DataStore:
             self.jobs[j.id] = j
 
         # ── Candidates ────────────────────────────────────────────────────────
-        c1 = CandidateProfile(
-            id="cand-ajitesh",
-            github_username="ajitesh-iiitd",
-            full_name="Ajitesh Chaurasia",
+        # Primary candidate for Candidate Portal (matches default input iiitd-dev)
+        c_me = CandidateProfile(
+            id="cand_iiitd-dev",
+            github_username="iiitd-dev",
+            full_name="Aarav Sharma",
             avatar_url="https://avatars.githubusercontent.com/u/8942111?v=4",
             bio="CS student at IIIT Delhi building distributed systems & backend APIs",
             is_bot=False,
-            git_provenance_score=98.0,
+            git_provenance_score=94.5,
             commit_topology_status="verified_human",
-            credibility_score=98.0,
+            credibility_score=95.0,
             fast_track_qualified=True,
         )
         c2 = CandidateProfile(
@@ -129,38 +130,57 @@ class DataStore:
             credibility_score=91.0,
             fast_track_qualified=True,
         )
-        c4 = CandidateProfile(
-            id="cand-priya",
-            github_username="priya-devops",
-            full_name="Priya Nair",
-            avatar_url="https://avatars.githubusercontent.com/u/9919?v=4",
-            bio="DevOps engineer specializing in Terraform and AWS multi-region architectures",
-            is_bot=False,
-            git_provenance_score=88.5,
-            commit_topology_status="verified_human",
-            credibility_score=88.0,
-            fast_track_qualified=True,
-        )
-        for c in [c1, c2, c3, c4]:
+        for c in [c_me, c2, c3]:
             self.candidates[c.id] = c
 
         # ── Applications ─────────────────────────────────────────────────────
-        # app-1: Ajitesh → Acme FastAPI job — Pending, 48h left (healthy SLA)
+        # 1. Aarav Sharma (YOU) applied across 3 different companies:
+        # App 1: Acme Systems → Pending review (within 72h SLA, 48h remaining)
         app1 = Application(
             id="app-1",
             job_id=job1.id,
-            candidate_id=c1.id,
-            candidate_name=c1.full_name,
-            github_username=c1.github_username,
+            candidate_id=c_me.id,
+            candidate_name=c_me.full_name,
+            github_username=c_me.github_username,
             queue_type="fast_track",
-            composite_score=98.0,
+            composite_score=96.0,
             submitted_at=(now - timedelta(hours=24)).isoformat(),
             sla_deadline=(now + timedelta(hours=48)).isoformat(),
             status="pending",
         )
-        # app-2: Ananya → Acme FastAPI job — Pending, 20h left (urgent!)
+        # App 2: Nova Labs → Interview Scheduled!
         app2 = Application(
             id="app-2",
+            job_id=job3.id,
+            candidate_id=c_me.id,
+            candidate_name=c_me.full_name,
+            github_username=c_me.github_username,
+            queue_type="fast_track",
+            composite_score=93.5,
+            submitted_at=(now - timedelta(hours=36)).isoformat(),
+            sla_deadline=(now + timedelta(hours=36)).isoformat(),
+            status="interview_scheduled",
+            disposition_at=(now - timedelta(hours=12)).isoformat(),
+            disposition_note="Impression: Outstanding AST code architecture.",
+            interview_time="Thursday at 3:00 PM IST",
+        )
+        # App 3: Phantom Corp → GHOSTED (SLA Breached: 80h elapsed without response)
+        app3 = Application(
+            id="app-3",
+            job_id=job4.id,
+            candidate_id=c_me.id,
+            candidate_name=c_me.full_name,
+            github_username=c_me.github_username,
+            queue_type="fast_track",
+            composite_score=89.0,
+            submitted_at=(now - timedelta(hours=80)).isoformat(),
+            sla_deadline=(now - timedelta(hours=8)).isoformat(),
+            status="ghosted",
+        )
+
+        # 2. Competitors in Acme Systems' Fast-Track Queue (shows judges real queue ranking)
+        app4 = Application(
+            id="app-4",
             job_id=job1.id,
             candidate_id=c2.id,
             candidate_name=c2.full_name,
@@ -171,10 +191,9 @@ class DataStore:
             sla_deadline=(now + timedelta(hours=20)).isoformat(),
             status="pending",
         )
-        # app-3: Rohan → Nova Labs MLOps job — Pending, 60h left
-        app3 = Application(
-            id="app-3",
-            job_id=job3.id,
+        app5 = Application(
+            id="app-5",
+            job_id=job1.id,
             candidate_id=c3.id,
             candidate_name=c3.full_name,
             github_username=c3.github_username,
@@ -184,20 +203,7 @@ class DataStore:
             sla_deadline=(now + timedelta(hours=60)).isoformat(),
             status="pending",
         )
-        # app-4: Priya → Phantom Corp DevOps job — GHOSTED (pre-seeded for drama)
-        app4 = Application(
-            id="app-4",
-            job_id=job4.id,
-            candidate_id=c4.id,
-            candidate_name=c4.full_name,
-            github_username=c4.github_username,
-            queue_type="fast_track",
-            composite_score=88.5,
-            submitted_at=(now - timedelta(hours=80)).isoformat(),
-            sla_deadline=(now - timedelta(hours=8)).isoformat(),
-            status="ghosted",
-        )
-        for a in [app1, app2, app3, app4]:
+        for a in [app1, app2, app3, app4, app5]:
             self.applications[a.id] = a
 
     # ── Company CRUD ──────────────────────────────────────────────────────────

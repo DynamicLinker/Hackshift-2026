@@ -190,12 +190,17 @@ def simulate_ghost(payload: GhostRequest):
 
 
 @router.get("/all-applications")
-def list_all_applications(simulated_hours: float = 0.0):
-    """Returns all applications across all jobs with SLA status — used by candidate status tracker."""
+def list_all_applications(simulated_hours: float = 0.0, candidate_username: Optional[str] = None):
+    """Returns all applications across all jobs with SLA status — filtered to a specific candidate if requested."""
     now_iso = (datetime.now(timezone.utc) + timedelta(hours=simulated_hours)).isoformat() if simulated_hours else datetime.now(timezone.utc).isoformat()
     results = []
     with db._lock:
         apps = list(db.applications.values())
+
+    if candidate_username and candidate_username.strip():
+        clean_user = candidate_username.strip().lstrip("@").lower()
+        apps = [a for a in apps if a.github_username.lower() == clean_user]
+
     for a in apps:
         sla = calculate_sla_status(a.submitted_at, a.sla_deadline, now_iso)
         candidate = db.get_candidate(a.candidate_id)

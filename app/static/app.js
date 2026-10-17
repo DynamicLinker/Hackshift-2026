@@ -291,7 +291,8 @@ function openApplicationStatusModal(appId) {
     statusHeader = `
       <div class="rounded-lg bg-rose-50 border border-rose-200 p-3 space-y-1 text-rose-900">
         <div class="font-bold text-sm flex items-center gap-1.5">
-          <span>👻</span><span>SLA Breached — Candidate Ghosted!</span>
+          <i data-lucide="alert-triangle" class="w-4 h-4 text-rose-600 shrink-0"></i>
+          <span>SLA Breached — Candidate Unresponsive / Ghosted</span>
         </div>
         <p class="text-xs text-rose-700">
           The employer failed to review this application within the mandated 72-hour turnaround window. The company's public Popularity Score has been penalized and their Verified Responsive badge revoked.
@@ -368,8 +369,9 @@ async function loadCandidateStatusBoard() {
   const container = document.getElementById("list-candidate-status");
   if (!container) return;
 
+  const username = currentCandidate?.github_username || document.getElementById("input-github-user")?.value.trim() || "iiitd-dev";
   try {
-    const res = await fetch(`/api/employer/all-applications?simulated_hours=${simulatedHours}`);
+    const res = await fetch(`/api/employer/all-applications?simulated_hours=${simulatedHours}&candidate_username=${encodeURIComponent(username)}`);
     if (!res.ok) throw new Error("Could not fetch board");
     const data = await res.json();
     renderCandidateStatusBoard(data);
@@ -385,7 +387,7 @@ function renderCandidateStatusBoard(items) {
   cachedApplications = {};
 
   if (!items.length) {
-    container.innerHTML = `<p class="text-xs text-slate-500 text-center py-4">No applications submitted yet.</p>`;
+    container.innerHTML = `<p class="text-xs text-slate-500 text-center py-4">No active applications submitted yet.</p>`;
     return;
   }
 
@@ -405,7 +407,7 @@ function renderCandidateStatusBoard(items) {
 
     if (isGhosted) {
       borderClass = "border-rose-300 bg-rose-50/40 hover:border-rose-400";
-      statusPill = `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-200">👻 GHOSTED (${sla.overdue_hours || 1}h overdue)</span>`;
+      statusPill = `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-200 flex items-center gap-1"><i data-lucide="alert-triangle" class="w-3 h-3 text-rose-600"></i><span>SLA BREACHED (${sla.overdue_hours || 1}h overdue)</span></span>`;
     } else if (isInterview) {
       borderClass = "border-indigo-200 bg-indigo-50/30";
       statusPill = `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-100 text-indigo-800 border border-indigo-200">Interview Scheduled</span>`;
@@ -421,13 +423,15 @@ function renderCandidateStatusBoard(items) {
     row.onclick = () => openApplicationStatusModal(app.id);
     row.innerHTML = `
       <div class="flex items-center gap-3 min-w-0">
-        <img src="${cand.avatar_url || 'https://avatars.githubusercontent.com/u/8942111?v=4'}" class="w-8 h-8 rounded-full border border-slate-200 shrink-0">
+        <div class="w-9 h-9 rounded-lg bg-slate-900 text-white flex items-center justify-center font-bold text-xs shrink-0">
+          ${(job.company_name || 'C').charAt(0)}
+        </div>
         <div class="min-w-0">
           <div class="flex items-center gap-2 flex-wrap">
-            <span class="font-bold text-xs text-slate-900">${cand.full_name || app.candidate_name}</span>
-            <span class="text-[11px] font-mono text-slate-500">@${app.github_username}</span>
+            <span class="font-bold text-xs text-slate-900">${job.company_name || 'Acme Systems'}</span>
+            <span class="text-[10px] px-1.5 py-0.2 rounded bg-slate-100 text-slate-600 border border-slate-200 font-mono">Fast-Track #1</span>
           </div>
-          <p class="text-[11px] text-slate-500 truncate">${job.title || 'Software Engineer'} @ <strong class="text-slate-700">${job.company_name || 'Acme'}</strong></p>
+          <p class="text-[11px] text-slate-600 font-medium truncate mt-0.5">${job.title || 'Software Engineer'}</p>
         </div>
       </div>
       <div class="flex items-center gap-3 shrink-0">
@@ -689,7 +693,7 @@ function renderEmployerQueues(data) {
 
     let slaBadge = "";
     if (isGhosted) {
-      slaBadge = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-rose-50 text-rose-700 border border-rose-200 text-xs font-bold">👻 SLA Breached (${sla.overdue_hours || 1}h overdue)</span>`;
+      slaBadge = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-rose-50 text-rose-700 border border-rose-200 text-xs font-bold"><i data-lucide="alert-triangle" class="w-3.5 h-3.5 text-rose-600"></i><span>SLA Breached (${sla.overdue_hours || 1}h overdue)</span></span>`;
     } else if (sla.status === "sla_urgent") {
       slaBadge = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-amber-50 text-amber-700 border border-amber-200 text-xs font-bold pulse-urgent">⚡ Action Required (${sla.remaining_hours}h left)</span>`;
     } else {
@@ -710,9 +714,9 @@ function renderEmployerQueues(data) {
             Pass w/ Feedback
           </button>
           <button onclick="event.stopPropagation(); openGhostModal('${app.id}')"
-            title="Simulate 72h ghosting"
+            title="Simulate 72h inactivity"
             class="px-2.5 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold border border-rose-200 transition">
-            👻 Ghost
+            Simulate Ghost
           </button>
         </div>
       `;
@@ -892,6 +896,6 @@ async function executeGhost() {
     showToast("Simulation error: " + err.message, "error");
   } finally {
     btn.disabled = false;
-    btn.innerHTML = `<span>👻 Confirm Ghosting</span>`;
+    btn.innerHTML = `<span>Confirm SLA Breach</span>`;
   }
 }
