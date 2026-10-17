@@ -741,10 +741,18 @@ async function startChallengeModal(jobId = null) {
 
     clearSandboxOutput();
     startTimer(ch.duration_seconds || 300);
-    sandbox.scrollIntoView({ behavior: "smooth" });
     lucide.createIcons();
   } catch (err) {
     showToast("Error starting challenge: " + err.message, "error");
+  }
+}
+
+function closeChallengeModal() {
+  const sandbox = document.getElementById("section-challenge-sandbox");
+  if (sandbox) sandbox.classList.add("hidden");
+  if (timerInterval) {
+    clearInterval(timerInterval);
+    timerInterval = null;
   }
 }
 
