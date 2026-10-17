@@ -15,6 +15,7 @@ __pycache__/
 # Ignore all markdown files
 *.md
 !README.md
+!DEPLOYMENT.md
 
 .agents/
 skills-lock.json
