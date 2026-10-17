@@ -611,6 +611,103 @@ async function submitChallenge() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+//  CANDIDATE: LIVE CODE EXECUTION SANDBOX
+// ─────────────────────────────────────────────────────────────────────────────
+
+async function runSandboxCode() {
+  const code = document.getElementById("input-code-editor")?.value;
+  if (!code) {
+    showToast("Editor is empty. Enter code to execute.", "warn");
+    return;
+  }
+
+  const btn = document.getElementById("btn-run-code");
+  const consoleSection = document.getElementById("section-sandbox-output");
+  const stdoutEl = document.getElementById("sandbox-stdout");
+  const badgeEl = document.getElementById("sandbox-execution-badge");
+  const timeEl = document.getElementById("sandbox-time-elapsed");
+  const pillsEl = document.getElementById("sandbox-test-pills");
+  const dotEl = document.getElementById("sandbox-status-dot");
+
+  consoleSection.classList.remove("hidden");
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = `<i data-lucide="loader-2" class="w-3 h-3 animate-spin text-emerald-400"></i><span>Running Tests…</span>`;
+  }
+  badgeEl.className = "px-2 py-0.5 rounded text-[10px] font-semibold bg-blue-900/60 text-blue-300 border border-blue-700";
+  badgeEl.textContent = "Running…";
+  dotEl.className = "w-2.5 h-2.5 rounded-full bg-blue-400 animate-ping inline-block";
+  stdoutEl.textContent = "Compiling and executing against test cases in sandbox...";
+  pillsEl.innerHTML = "";
+  lucide.createIcons();
+
+  const challengeId = currentChallenge?.bug_fix_title?.toLowerCase().includes("leak") ? "db-connection-leak" : "fastapi-async-race";
+
+  try {
+    const res = await fetch("/api/candidate/assessment/run-code", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        challenge_id: challengeId,
+        code: code,
+      }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.detail || "Sandbox execution error");
+    }
+
+    const data = await res.json();
+    timeEl.textContent = `${data.execution_time_ms || 0}ms`;
+    stdoutEl.textContent = data.stdout || (data.error ? `Error: ${data.error}` : "No output received.");
+
+    if (data.passed) {
+      badgeEl.className = "px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-950 text-emerald-300 border border-emerald-700";
+      badgeEl.textContent = `Passed (${data.passed_tests}/${data.total_tests})`;
+      dotEl.className = "w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block";
+      showToast(`Tests passed! ${data.passed_tests}/${data.total_tests} test cases successful (${data.execution_time_ms}ms).`, "success");
+    } else {
+      badgeEl.className = "px-2 py-0.5 rounded text-[10px] font-semibold bg-rose-950 text-rose-300 border border-rose-700";
+      badgeEl.textContent = data.total_tests > 0 ? `Failed (${data.passed_tests}/${data.total_tests})` : "Compilation Error";
+      dotEl.className = "w-2.5 h-2.5 rounded-full bg-rose-500 inline-block";
+      showToast(data.error || `Tests failed: ${data.passed_tests}/${data.total_tests} passed.`, "warn");
+    }
+
+    // Render structured test pills
+    pillsEl.innerHTML = "";
+    (data.test_results || []).forEach(t => {
+      const pill = document.createElement("span");
+      if (t.passed) {
+        pill.className = "inline-flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-950/80 text-emerald-300 border border-emerald-800 text-[10px] font-medium";
+        pill.innerHTML = `<i data-lucide="check" class="w-3 h-3 text-emerald-400"></i><span>${t.name}</span>`;
+      } else {
+        pill.className = "inline-flex items-center gap-1 px-2 py-0.5 rounded bg-rose-950/80 text-rose-300 border border-rose-800 text-[10px] font-medium";
+        pill.innerHTML = `<i data-lucide="x" class="w-3 h-3 text-rose-400"></i><span>${t.name}</span>`;
+      }
+      pillsEl.appendChild(pill);
+    });
+  } catch (err) {
+    stdoutEl.textContent = `Sandbox Error: ${err.message}`;
+    badgeEl.className = "px-2 py-0.5 rounded text-[10px] font-semibold bg-rose-950 text-rose-300 border border-rose-700";
+    badgeEl.textContent = "Error";
+    dotEl.className = "w-2.5 h-2.5 rounded-full bg-rose-500 inline-block";
+    showToast(`Error running code: ${err.message}`, "error");
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = `<i data-lucide="play" class="w-3 h-3 text-emerald-400"></i><span>Run Code & Tests</span>`;
+    }
+    lucide.createIcons();
+  }
+}
+
+function clearSandboxOutput() {
+  const consoleSection = document.getElementById("section-sandbox-output");
+  if (consoleSection) consoleSection.classList.add("hidden");
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 //  EMPLOYER: 72H TIME SIMULATION SLIDER
 // ─────────────────────────────────────────────────────────────────────────────
 

@@ -14,6 +14,7 @@ from app.db.datastore import db
 from app.models import CandidateProfile, AssessmentChallenge, AssessmentSubmission, Application
 from app.services.git_analyzer import analyze_github_user
 from app.services.assessment_engine import generate_challenge, evaluate_submission
+from app.services.code_sandbox import execute_code_sandbox
 
 router = APIRouter(prefix="/api/candidate", tags=["Candidate"])
 
@@ -33,6 +34,11 @@ class SubmitAssessmentRequest(BaseModel):
     challenge_id: str
     self_repo_explanation: str
     fixed_code: str
+
+
+class RunCodeRequest(BaseModel):
+    challenge_id: Optional[str] = Field("fastapi-async-race", description="ID of the challenge being tested")
+    code: str = Field(..., description="Python code to compile and run against test cases")
 
 
 @router.post("/audit", response_model=CandidateProfile)
@@ -145,3 +151,12 @@ def submit_assessment_challenge(payload: SubmitAssessmentRequest):
         "evaluation": eval_result,
         "application": application_data,
     }
+
+
+@router.post("/assessment/run-code")
+async def run_assessment_code(payload: RunCodeRequest):
+    """Compiles and executes candidate bug fix in the async sandbox against test suites."""
+    challenge_id = payload.challenge_id or "fastapi-async-race"
+    res = await execute_code_sandbox(code=payload.code, challenge_id=challenge_id)
+    return res
+
