@@ -53,9 +53,9 @@ class DataStore:
             id="job-backend-fastapi",
             company_id=comp_acme.id,
             company_name=comp_acme.name,
-            title="Senior Backend Engineer (FastAPI / PostgreSQL)",
-            stack_tags=["Python", "FastAPI", "PostgreSQL", "Redis", "Docker"],
-            description="Build low-latency distributed APIs, manage database connection pools, and design scalable asynchronous task queues.",
+            title="Senior Backend Engineer (FastAPI / Concurrency)",
+            stack_tags=["Python", "FastAPI", "Redis", "Docker"],
+            description="Build high-throughput distributed APIs, manage token-bucket rate limiters, and prevent async race conditions under load.",
             experience_level="Mid / Senior",
             salary_range="INR 14 - 22 LPA",
         )
@@ -73,21 +73,21 @@ class DataStore:
             id="job-mlops-nova",
             company_id=comp_nova.id,
             company_name=comp_nova.name,
-            title="MLOps Engineer (Kubernetes / Triton)",
-            stack_tags=["Python", "Kubernetes", "Docker", "Triton", "PyTorch"],
-            description="Deploy and serve large-scale ML models, maintain training pipelines, and optimize inference throughput.",
+            title="High-Performance Database Architect",
+            stack_tags=["Python", "SQLAlchemy", "PostgreSQL", "AsyncIO"],
+            description="Design fault-tolerant database access layers, connection pool architectures, and zero-leak transaction management.",
             experience_level="Senior",
-            salary_range="INR 20 - 32 LPA",
+            salary_range="INR 18 - 28 LPA",
         )
         job4 = Job(
             id="job-devops-phantom",
             company_id=comp_ghost.id,
             company_name=comp_ghost.name,
-            title="DevOps Architect (AWS / Terraform)",
-            stack_tags=["AWS", "Terraform", "Python", "Ansible", "CI/CD"],
-            description="Design multi-region AWS infrastructure, CI/CD pipelines, and disaster recovery protocols.",
+            title="Distributed Microservices & Resilience Lead",
+            stack_tags=["Python", "Distributed Systems", "WebSockets", "AWS"],
+            description="Build resilient inter-service communication protocols, circuit breakers, and exponential backoff retry engines.",
             experience_level="Senior",
-            salary_range="INR 18 - 28 LPA",
+            salary_range="INR 20 - 32 LPA",
         )
         for j in [job1, job2, job3, job4]:
             self.jobs[j.id] = j

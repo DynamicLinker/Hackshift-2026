@@ -140,3 +140,43 @@ def test_api_run_code_endpoint():
     assert data["total_tests"] == 3
     assert data["passed_tests"] == 3
     assert "execution_time_ms" in data
+
+
+BUGGY_RETRY_STORM = """
+import asyncio
+
+async def dispatch_webhook_with_retry(client, url: str, max_retries: int = 4):
+    for attempt in range(max_retries):
+        try:
+            return await client.post(url)
+        except Exception:
+            if attempt == max_retries - 1:
+                raise
+"""
+
+FIXED_RETRY_STORM = """
+import asyncio
+
+async def dispatch_webhook_with_retry(client, url: str, max_retries: int = 4):
+    for attempt in range(max_retries):
+        try:
+            return await client.post(url)
+        except Exception:
+            if attempt == max_retries - 1:
+                raise
+            await asyncio.sleep(min(2 ** attempt, 8))
+"""
+
+
+@pytest.mark.anyio
+async def test_retry_storm_challenge():
+    res_buggy = await execute_code_sandbox(BUGGY_RETRY_STORM, challenge_id="network-retry-storm")
+    assert res_buggy["passed"] is False
+    assert res_buggy["test_results"][1]["passed"] is False
+
+    res_fixed = await execute_code_sandbox(FIXED_RETRY_STORM, challenge_id="network-retry-storm")
+    assert res_fixed["passed"] is True
+    assert res_fixed["test_results"][0]["passed"] is True
+    assert res_fixed["test_results"][1]["passed"] is True
+    assert res_fixed["test_results"][2]["passed"] is True
+

@@ -17,6 +17,7 @@ let cachedRepos        = {};  // repoName -> repo object for instant click modal
 document.addEventListener("DOMContentLoaded", async () => {
   await runCandidateAudit();
   loadEmployerBootstrap();
+  loadCandidateJobs();
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -180,8 +181,9 @@ function renderAuditResults(c) {
     headingName.textContent = c.full_name ? `${c.full_name} (@${c.github_username})` : `@${c.github_username}`;
   }
 
-  // Reload the status board strictly for this audited candidate
+  // Reload the status board and available jobs strictly for this audited candidate
   loadCandidateStatusBoard();
+  loadCandidateJobs();
 
   // Gemini Analysis Banner
   const geminiBanner = document.getElementById("gemini-audit-banner");
@@ -491,15 +493,190 @@ function renderCandidateStatusBoard(items) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+//  CANDIDATE: AVAILABLE ROLES & TAILORED MICRO-ASSESSMENTS
+// ─────────────────────────────────────────────────────────────────────────────
+
+function scrollToJobOpenings() {
+  const el = document.getElementById("section-available-jobs");
+  if (el) el.scrollIntoView({ behavior: "smooth" });
+}
+
+async function loadCandidateJobs() {
+  const container = document.getElementById("grid-candidate-jobs");
+  if (!container) return;
+
+  // Ensure jobs are bootstrapped
+  if (!allJobs.length) {
+    try {
+      const res = await fetch("/api/employer/jobs");
+      if (res.ok) {
+        const data = await res.json();
+        allJobs = data.map(x => x.job);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  // Get candidate's existing applications to reflect status per job
+  const username = currentCandidate?.github_username || document.getElementById("input-github-user")?.value.trim() || "iiitd-dev";
+  let appliedMap = {};
+  try {
+    const res = await fetch(`/api/employer/all-applications?simulated_hours=${simulatedHours}&candidate_username=${encodeURIComponent(username)}`);
+    if (res.ok) {
+      const apps = await res.json();
+      apps.forEach(item => {
+        appliedMap[item.job.id] = item;
+      });
+    }
+  } catch (e) {
+    console.error(e);
+  }
+
+  container.innerHTML = "";
+  const countBadge = document.getElementById("label-open-roles-count");
+  if (countBadge) countBadge.textContent = `${allJobs.length} Active Openings`;
+
+  const isQualified = currentCandidate ? currentCandidate.fast_track_qualified : true;
+
+  allJobs.forEach(job => {
+    const existing = appliedMap[job.id];
+    const isApplied = !!existing;
+
+    // Challenge metadata matched to stack
+    let challengeTitle = "Fix Concurrency Race Condition in Shared Token Bucket";
+    let challengeFile = "token_bucket.py";
+    let conceptTag = "Asyncio Concurrency";
+
+    const stackLower = (job.stack_tags || []).join(" ").toLowerCase();
+    if (stackLower.includes("sqlalchemy") || stackLower.includes("postgresql") || stackLower.includes("database")) {
+      challengeTitle = "Resolve Database Connection Leak in Async Repository";
+      challengeFile = "db_repository.py";
+      conceptTag = "Resource Management";
+    } else if (stackLower.includes("resilience") || stackLower.includes("websockets") || stackLower.includes("distributed systems") || stackLower.includes("aws")) {
+      challengeTitle = "Prevent Thundering Herd Retry Storm with Exponential Backoff";
+      challengeFile = "resilience_client.py";
+      conceptTag = "Distributed Resilience";
+    }
+
+    const card = document.createElement("div");
+    card.className = `p-4 rounded-xl border ${isApplied ? 'border-emerald-300 bg-emerald-50/20' : 'border-slate-200 bg-white hover:border-blue-400'} shadow-sm flex flex-col justify-between gap-3 transition`;
+
+    const stackPills = (job.stack_tags || [])
+      .slice(0, 3)
+      .map(t => `<span class="px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200 font-mono text-[10px]">${t}</span>`)
+      .join(" ");
+
+    let actionButton = "";
+    if (isApplied) {
+      const st = existing.application.status;
+      let statusText = "Active Fast-Track #1";
+      if (st === "interview_scheduled") statusText = "Interview Scheduled";
+      else if (st === "ghosted") statusText = "SLA Breached / Ghosted";
+
+      actionButton = `
+        <div class="space-y-1.5 pt-1">
+          <div class="flex items-center justify-between text-[11px]">
+            <span class="text-emerald-700 font-semibold flex items-center gap-1">
+              <i data-lucide="check-circle" class="w-3.5 h-3.5 text-emerald-600"></i>
+              <span>${statusText}</span>
+            </span>
+            <span class="font-bold text-slate-800 font-mono">${existing.application.composite_score}%</span>
+          </div>
+          <button onclick="openApplicationStatusModal('${existing.application.id}')"
+            class="w-full py-1.5 rounded-lg bg-emerald-100/70 hover:bg-emerald-200 text-emerald-900 font-semibold text-xs border border-emerald-300 transition flex items-center justify-center gap-1.5">
+            <span>View Application Dossier</span>
+            <i data-lucide="arrow-right" class="w-3 h-3"></i>
+          </button>
+        </div>
+      `;
+    } else if (!isQualified) {
+      actionButton = `
+        <button disabled
+          class="w-full py-2 rounded-lg bg-slate-100 text-slate-400 font-medium text-xs border border-slate-200 cursor-not-allowed flex items-center justify-center gap-1">
+          <i data-lucide="lock" class="w-3.5 h-3.5"></i>
+          <span>Locked (Cold Queue Only)</span>
+        </button>
+      `;
+    } else {
+      actionButton = `
+        <button onclick="startJobChallenge('${job.id}')"
+          class="w-full py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shadow-sm flex items-center justify-center gap-1.5 transition">
+          <span>Take 5-Min Test for this Role</span>
+          <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+        </button>
+      `;
+    }
+
+    card.innerHTML = `
+      <div class="space-y-2">
+        <div class="flex items-center justify-between gap-2">
+          <span class="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+            <span class="w-5 h-5 rounded-md bg-slate-900 text-white text-[10px] font-black flex items-center justify-center">
+              ${(job.company_name || 'C').charAt(0)}
+            </span>
+            <span>${job.company_name}</span>
+          </span>
+          <span class="text-[10px] text-emerald-700 font-semibold px-2 py-0.5 rounded bg-emerald-50 border border-emerald-200">
+            72h Anti-Ghost SLA
+          </span>
+        </div>
+
+        <div>
+          <h4 class="text-xs font-bold text-slate-900 leading-snug">${job.title}</h4>
+          <p class="text-[11px] text-slate-500 line-clamp-2 mt-0.5">${job.description}</p>
+        </div>
+
+        <div class="flex items-center gap-1 flex-wrap">
+          ${stackPills}
+        </div>
+
+        <div class="rounded-lg bg-slate-50 border border-slate-200 p-2 space-y-1">
+          <div class="text-[10px] font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1">
+            <i data-lucide="zap" class="w-3 h-3 text-amber-500"></i>
+            <span>Tailored 5-Min Assessment</span>
+          </div>
+          <p class="text-[11px] font-medium text-slate-800 leading-tight">${challengeTitle}</p>
+          <div class="flex items-center justify-between text-[10px] text-slate-500 font-mono pt-0.5">
+            <span>${challengeFile}</span>
+            <span class="text-blue-600">${conceptTag}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="pt-2 border-t border-slate-100">
+        ${actionButton}
+      </div>
+    `;
+
+    container.appendChild(card);
+  });
+
+  lucide.createIcons();
+}
+
+function startJobChallenge(jobId) {
+  const job = allJobs.find(j => j.id === jobId);
+  if (job) currentJob = job;
+  startChallengeModal(jobId);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 //  CANDIDATE: 5-MIN CHALLENGE
 // ─────────────────────────────────────────────────────────────────────────────
 
-async function startChallengeModal() {
+async function startChallengeModal(jobId = null) {
   if (!currentCandidate) return;
+  if (jobId) {
+    const found = allJobs.find(j => j.id === jobId);
+    if (found) currentJob = found;
+  }
   if (!currentJob) {
     if (!allJobs.length) await loadEmployerBootstrap();
     currentJob = allJobs[0] || null;
   }
+
+  const targetJobId = jobId || (currentJob ? currentJob.id : "job-backend-fastapi");
 
   try {
     const res = await fetch("/api/candidate/assessment/start", {
@@ -507,7 +684,7 @@ async function startChallengeModal() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         candidate_id: currentCandidate.id,
-        job_id: currentJob ? currentJob.id : "job-backend-fastapi",
+        job_id: targetJobId,
       }),
     });
 
@@ -518,7 +695,13 @@ async function startChallengeModal() {
     const sandbox = document.getElementById("section-challenge-sandbox");
     sandbox.classList.remove("hidden");
 
-    document.getElementById("challenge-job-title").textContent = `Challenge for: ${currentJob ? currentJob.title : 'Backend SDE'}`;
+    document.getElementById("challenge-job-title").textContent = `Challenge for: ${currentJob ? currentJob.title : 'Target Role'}`;
+    const compBadge = document.getElementById("challenge-company-badge");
+    if (compBadge) compBadge.textContent = `Target Company: ${currentJob?.company_name || 'Acme Systems'} · 72h Anti-Ghost SLA Guarantee`;
+
+    const filenameEl = document.getElementById("challenge-editor-filename");
+    if (filenameEl) filenameEl.textContent = ch.filename || "token_bucket.py";
+
     document.getElementById("challenge-self-prompt").textContent = ch.self_repo_prompt;
     document.getElementById("challenge-bug-title").textContent = ch.bug_fix_title;
     document.getElementById("challenge-bug-instructions").textContent = ch.bug_fix_instructions;
@@ -526,6 +709,7 @@ async function startChallengeModal() {
     document.getElementById("input-code-editor").value = ch.buggy_code_snippet;
     document.getElementById("input-self-explanation").value = "";
 
+    clearSandboxOutput();
     startTimer(ch.duration_seconds || 300);
     sandbox.scrollIntoView({ behavior: "smooth" });
     lucide.createIcons();
@@ -582,7 +766,7 @@ async function submitChallenge() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         challenge_id: currentChallenge.id,
-        self_repo_explanation: explanation || "Implemented asyncio.Lock to prevent race condition during token check.",
+        self_repo_explanation: explanation || "Implemented robust architecture matching the target role requirements.",
         fixed_code: code,
       }),
     });
@@ -596,8 +780,10 @@ async function submitChallenge() {
     if (data.evaluation.passed) {
       document.getElementById("section-challenge-sandbox").classList.add("hidden");
       document.getElementById("section-vault-success").classList.remove("hidden");
-      showToast("Verification passed! Vaulted to #1 on Fast-Track.", "success");
+      const companyName = currentJob?.company_name || "Employer";
+      showToast(`Verification passed! Vaulted to #1 on ${companyName} Fast-Track Queue.`, "success");
       loadCandidateStatusBoard();
+      loadCandidateJobs();
     } else {
       showToast(`Assessment failed (${data.evaluation.score}/100): ${data.evaluation.feedback}`, "warn");
     }
@@ -641,7 +827,13 @@ async function runSandboxCode() {
   pillsEl.innerHTML = "";
   lucide.createIcons();
 
-  const challengeId = currentChallenge?.bug_fix_title?.toLowerCase().includes("leak") ? "db-connection-leak" : "fastapi-async-race";
+  let challengeId = "fastapi-async-race";
+  const titleLower = (currentChallenge?.bug_fix_title || "").toLowerCase();
+  if (titleLower.includes("leak") || titleLower.includes("database")) {
+    challengeId = "db-connection-leak";
+  } else if (titleLower.includes("retry") || titleLower.includes("storm") || titleLower.includes("resilience")) {
+    challengeId = "network-retry-storm";
+  }
 
   try {
     const res = await fetch("/api/candidate/assessment/run-code", {

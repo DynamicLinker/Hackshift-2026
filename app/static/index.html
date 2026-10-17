@@ -176,10 +176,10 @@
             <div id="audit-qualification-badge" class="mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-xs font-semibold w-fit">
               <span>Checking…</span>
             </div>
-            <button id="btn-start-challenge" onclick="startChallengeModal()"
+            <button id="btn-start-challenge" onclick="scrollToJobOpenings()"
               class="mt-2 w-full py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs transition flex items-center justify-center gap-1.5 shadow-sm">
-              <span>Start 5-Min Challenge</span>
-              <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+              <span>Choose Role to Apply</span>
+              <i data-lucide="arrow-down" class="w-3.5 h-3.5"></i>
             </button>
           </div>
         </div>
@@ -223,6 +223,28 @@
         </div>
       </div>
 
+      <!-- Section: Available Roles & Tailored Micro-Assessments -->
+      <div id="section-available-jobs" class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-slate-100">
+          <div>
+            <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+              <i data-lucide="briefcase" class="w-4 h-4 text-blue-600"></i>
+              <span>Target Openings & Role-Specific Micro-Assessments</span>
+            </h3>
+            <p class="text-xs text-slate-500 mt-0.5">
+              Select an open role to take its custom 5-minute technical challenge and vault to #1 on that company's fast-track queue.
+            </p>
+          </div>
+          <span id="label-open-roles-count" class="text-xs font-semibold px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200 w-fit">
+            3 Active Openings
+          </span>
+        </div>
+
+        <div id="grid-candidate-jobs" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <!-- Dynamically populated by JS: Role Cards with tailored challenge badges -->
+        </div>
+      </div>
+
       <!-- 5-Minute Challenge Sandbox (Hidden until started) -->
       <div id="section-challenge-sandbox" class="hidden bg-white rounded-xl border-2 border-blue-500 p-6 shadow-sm space-y-6 slide-in">
         
@@ -234,6 +256,7 @@
               Live 5-Minute Micro-Challenge
             </div>
             <h2 id="challenge-job-title" class="text-lg font-bold text-slate-900 mt-1">Challenge</h2>
+            <p id="challenge-company-badge" class="text-xs text-blue-600 font-semibold mt-0.5"></p>
           </div>
           <div class="flex items-center gap-3 bg-slate-50 px-4 py-2 rounded-lg border border-slate-200 self-start sm:self-auto">
             <i data-lucide="timer" class="w-4 h-4 text-blue-600"></i>
