@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ProofHired | Zero-Resume Proof-of-Competence Marketplace</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#ecfeff',
+              400: '#22d3ee',
+              500: '#06b6d4',
+              600: '#0891b2',
+            }
+          },
+          fontFamily: {
+            mono: ['JetBrains Mono', 'Menlo', 'Courier New', 'monospace'],
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+    body { font-family: 'Inter', sans-serif; }
+    code, pre, textarea.code-font { font-family: 'JetBrains Mono', monospace; }
+    .pulse-urgent { animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col antialiased selection:bg-cyan-500 selection:text-black">
+
+  <!-- Top Navigation Header -->
+  <header class="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-cyan-500/20 font-black text-xl text-white">
+          ⚡
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="text-xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 to-indigo-300">
+              ProofHired
+            </span>
+            <span class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
+              HackShift '26 • IIIT-D
+            </span>
+          </div>
+          <p class="text-xs text-slate-400">Zero-Resume Proof-of-Competence Marketplace</p>
+        </div>
+      </div>
+
+      <!-- View Switcher -->
+      <div class="flex items-center bg-slate-800/80 p-1 rounded-xl border border-slate-700/60">
+        <button id="btn-tab-candidate" onclick="switchTab('candidate')" class="flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm font-semibold transition-all bg-cyan-500 text-slate-950 shadow-md">
+          <i data-lucide="user-check" class="w-4 h-4"></i>
+          <span>Candidate Portal</span>
+        </button>
+        <button id="btn-tab-employer" onclick="switchTab('employer')" class="flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm font-medium transition-all text-slate-300 hover:text-white">
+          <i data-lucide="building-2" class="w-4 h-4"></i>
+          <span>Employer Cockpit</span>
+        </button>
+      </div>
+
+      <!-- Live Demo Trigger Shortcuts -->
+      <div class="hidden md:flex items-center gap-2">
+        <span class="text-xs text-slate-400">Quick Test:</span>
+        <button onclick="setCandidateDemo('iiitd-dev')" class="text-xs font-semibold px-2.5 py-1 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 transition">
+          Verified Student (@iiitd-dev)
+        </button>
+        <button onclick="setCandidateDemo('ai-spammer')" class="text-xs font-semibold px-2.5 py-1 rounded-md bg-rose-500/10 text-rose-400 border border-rose-500/20 hover:bg-rose-500/20 transition">
+          AI Spammer (@ai-spammer)
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content Container -->
+  <main class="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
+
+    <!-- ==================== TAB 1: CANDIDATE PORTAL ==================== -->
+    <div id="tab-candidate" class="space-y-8">
+      
+      <!-- Candidate Hero Banner -->
+      <div class="relative overflow-hidden rounded-2xl bg-gradient-to-r from-slate-900 via-slate-850 to-indigo-950 p-6 md:p-8 border border-slate-800">
+        <div class="max-w-3xl space-y-3">
+          <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-500/10 text-cyan-300 text-xs font-semibold border border-cyan-500/20">
+            <i data-lucide="shield-check" class="w-3.5 h-3.5"></i>
+            No Resumes • No 8-Hour Take-Homes • Verified Git Proof
+          </div>
+          <h1 class="text-2xl md:text-3xl font-extrabold tracking-tight text-white">
+            Bypass the 2,000-Applicant Black Hole.
+          </h1>
+          <p class="text-slate-300 text-sm md:text-base leading-relaxed">
+            Audit your public GitHub repositories, verify your progressive commit history, and take a 5-minute challenge on your own code to vault directly to <span class="text-cyan-400 font-bold">#1 on the Employer Fast-Track Queue</span> with a guaranteed 72-hour review turnaround.
+          </p>
+        </div>
+
+        <!-- GitHub Username Input -->
+        <div class="mt-6 flex flex-col sm:flex-row gap-3 max-w-xl">
+          <div class="relative flex-1">
+            <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500 font-mono text-sm">@</span>
+            <input id="input-github-user" type="text" placeholder="Enter GitHub username (e.g. iiitd-dev)" value="iiitd-dev" class="w-full pl-8 pr-4 py-2.5 rounded-xl bg-slate-950 border border-slate-700 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 text-white placeholder-slate-500 text-sm font-mono">
+          </div>
+          <button id="btn-audit" onclick="runCandidateAudit()" class="px-6 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-slate-950 font-bold text-sm shadow-lg shadow-cyan-500/20 flex items-center justify-center gap-2 transition">
+            <i data-lucide="cpu" class="w-4 h-4"></i>
+            <span>Audit Git Provenance</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Audit Results Section (Hidden until audited) -->
+      <div id="section-audit-results" class="hidden space-y-6">
+        
+        <!-- Provenance Overview Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <!-- Profile Badge -->
+          <div class="p-5 rounded-xl bg-slate-900 border border-slate-800 flex items-center gap-4">
+            <img id="audit-avatar" src="https://avatars.githubusercontent.com/u/8942111?v=4" alt="Avatar" class="w-14 h-14 rounded-full border-2 border-cyan-500">
+            <div>
+              <h3 id="audit-fullname" class="font-bold text-white text-base">Aarav Sharma</h3>
+              <p id="audit-username" class="text-xs text-cyan-400 font-mono">@iiitd-dev</p>
+              <p id="audit-bio" class="text-[11px] text-slate-400 mt-1 line-clamp-1">CS Undergrad @ IIIT Delhi</p>
+            </div>
+          </div>
+
+          <!-- Git Provenance Score -->
+          <div class="p-5 rounded-xl bg-slate-900 border border-slate-800 flex flex-col justify-between">
+            <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Git Provenance Score</span>
+            <div class="flex items-baseline gap-2 mt-2">
+              <span id="audit-provenance-score" class="text-3xl font-black text-emerald-400">94.5%</span>
+              <span class="text-xs text-slate-400">/ 100</span>
+            </div>
+            <p class="text-[11px] text-slate-400 mt-1">Multi-commit topology verified</p>
+          </div>
+
+          <!-- Topology Status -->
+          <div class="p-5 rounded-xl bg-slate-900 border border-slate-800 flex flex-col justify-between">
+            <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Commit Distribution</span>
+            <div id="audit-topology-badge" class="mt-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-bold w-fit">
+              <i data-lucide="check-circle" class="w-3.5 h-3.5"></i>
+              <span>Verified Human Developer</span>
+            </div>
+            <p class="text-[11px] text-slate-400 mt-1">Progressive iterative development</p>
+          </div>
+
+          <!-- Eligibility Action -->
+          <div class="p-5 rounded-xl bg-slate-900 border border-slate-800 flex flex-col justify-between">
+            <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Queue Qualification</span>
+            <div id="audit-qualification-badge" class="mt-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-cyan-500/10 text-cyan-300 border border-cyan-500/20 text-xs font-bold w-fit">
+              <i data-lucide="zap" class="w-3.5 h-3.5"></i>
+              <span>Fast-Track Eligible</span>
+            </div>
+            <button id="btn-start-challenge" onclick="startChallengeModal()" class="mt-2 w-full py-1.5 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs transition flex items-center justify-center gap-1">
+              <span>Start 5-Min Challenge</span>
+              <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Audited Repositories Table -->
+        <div class="rounded-xl bg-slate-900 border border-slate-800 overflow-hidden">
+          <div class="p-4 border-b border-slate-800 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <i data-lucide="folder-git-2" class="w-4 h-4 text-cyan-400"></i>
+              <h4 class="font-bold text-sm text-white">Audited Repositories & Architecture Footprint</h4>
+            </div>
+            <span class="text-xs text-slate-400">Analyzed via Git Tree AST & Commit Topology</span>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+              <thead class="bg-slate-950 text-slate-400 font-semibold border-b border-slate-800">
+                <tr>
+                  <th class="py-3 px-4">Repository</th>
+                  <th class="py-3 px-4">Primary Language</th>
+                  <th class="py-3 px-4">Commit Cadence</th>
+                  <th class="py-3 px-4">Detected Tech Stack</th>
+                  <th class="py-3 px-4 text-right">Provenance</th>
+                </tr>
+              </thead>
+              <tbody id="table-audited-repos" class="divide-y divide-slate-800 text-slate-300">
+                <!-- Dynamically populated -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Challenge Sandbox Interface (Appears when user starts challenge) -->
+      <div id="section-challenge-sandbox" class="hidden space-y-6">
+        <div class="rounded-2xl bg-slate-900 border-2 border-cyan-500/50 p-6 shadow-2xl shadow-cyan-500/10 space-y-6">
+          
+          <!-- Sandbox Header with 5-Minute Timer -->
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800">
+            <div>
+              <div class="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-cyan-500/10 text-cyan-300 text-xs font-bold border border-cyan-500/20">
+                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+                Live 5-Minute Micro-Sandbox
+              </div>
+              <h2 id="challenge-job-title" class="text-xl font-black text-white mt-1">
+                Challenge for Senior Backend Engineer (FastAPI / PostgreSQL)
+              </h2>
+            </div>
+
+            <!-- Server-Synchronized Timer Display -->
+            <div class="flex items-center gap-3 bg-slate-950 px-4 py-2 rounded-xl border border-slate-800">
+              <i data-lucide="timer" class="w-5 h-5 text-cyan-400"></i>
+              <div>
+                <div class="text-[10px] uppercase font-bold text-slate-400">Time Remaining</div>
+                <div id="timer-display" class="text-2xl font-mono font-black text-emerald-400">05:00</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Part 1: Self-Repo Comprehension Verification -->
+          <div class="space-y-3">
+            <div class="flex items-center gap-2">
+              <span class="w-6 h-6 rounded-full bg-cyan-500 text-slate-950 flex items-center justify-center font-black text-xs">1</span>
+              <h3 class="font-bold text-white text-sm">Self-Repository Architectural Defense</h3>
+              <span class="text-xs px-2 py-0.5 rounded bg-slate-800 text-slate-400 font-mono">50 Points</span>
+            </div>
+            <div class="p-4 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-300 leading-relaxed">
+              <p id="challenge-self-prompt" class="font-medium text-cyan-200">
+                <!-- Dynamically generated self-repo question -->
+              </p>
+            </div>
+            <textarea id="input-self-explanation" rows="3" placeholder="Explain your architectural rationale here (e.g. how your async queues handle backpressure and why you chose this design)..." class="w-full p-3 rounded-xl bg-slate-950 border border-slate-700 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 text-slate-200 text-xs leading-relaxed"></textarea>
+          </div>
+
+          <!-- Part 2: 5-Minute Bug Fix -->
+          <div class="space-y-3">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <span class="w-6 h-6 rounded-full bg-cyan-500 text-slate-950 flex items-center justify-center font-black text-xs">2</span>
+                <h3 id="challenge-bug-title" class="font-bold text-white text-sm">Fix Concurrency Race Condition</h3>
+                <span class="text-xs px-2 py-0.5 rounded bg-slate-800 text-slate-400 font-mono">50 Points</span>
+              </div>
+              <span id="challenge-concept" class="text-xs text-indigo-400 font-mono">Asyncio Concurrency</span>
+            </div>
+            <p id="challenge-bug-instructions" class="text-xs text-slate-400">
+              Fix the race condition in the snippet below so that concurrent requests do not exceed the token capacity.
+            </p>
+            
+            <!-- Code Editor Box -->
+            <div class="relative rounded-xl border border-slate-800 bg-slate-950 overflow-hidden">
+              <div class="bg-slate-900 px-4 py-2 border-b border-slate-800 flex items-center justify-between text-xs text-slate-400">
+                <span class="font-mono">token_bucket.py</span>
+                <span>Editable Sandbox</span>
+              </div>
+              <textarea id="input-code-editor" rows="12" class="w-full p-4 bg-slate-950 text-emerald-400 code-font text-xs leading-relaxed focus:outline-none focus:ring-0 resize-y"></textarea>
+            </div>
+          </div>
+
+          <!-- Submit Button -->
+          <div class="flex items-center justify-between pt-4 border-t border-slate-800">
+            <p class="text-xs text-slate-400">
+              Submissions are validated against AST syntax and server-side timestamps.
+            </p>
+            <button id="btn-submit-challenge" onclick="submitChallenge()" class="px-8 py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 text-slate-950 font-black text-sm shadow-lg shadow-emerald-500/20 flex items-center gap-2 transition">
+              <i data-lucide="check-check" class="w-4 h-4"></i>
+              <span>Submit & Vault to Fast-Track</span>
+            </button>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Celebration & Vault Success Banner -->
+      <div id="section-vault-success" class="hidden rounded-2xl bg-gradient-to-br from-emerald-950/80 via-slate-900 to-cyan-950/80 border-2 border-emerald-500/50 p-8 text-center space-y-4 shadow-2xl shadow-emerald-500/10">
+        <div class="w-16 h-16 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center mx-auto text-3xl font-black border border-emerald-500/30">
+          ✓
+        </div>
+        <h2 class="text-2xl font-black text-white">Vaulted to Position #1 in Fast-Track Queue!</h2>
+        <p class="text-slate-300 text-sm max-w-xl mx-auto">
+          Congratulations! You bypassed <strong class="text-emerald-400">2,140 unscreened resume submissions</strong>. Your verified Git commit provenance and live challenge response vaulted you directly to the top of Acme Systems' review queue.
+        </p>
+        <div class="inline-flex items-center gap-3 px-4 py-2 rounded-xl bg-slate-950 border border-emerald-500/30 text-xs font-mono text-emerald-300">
+          <i data-lucide="clock" class="w-4 h-4"></i>
+          <span>72-Hour Anti-Ghost SLA Guarantee Active • Deadline: 71h 59m left</span>
+        </div>
+        <div class="pt-4">
+          <button onclick="switchTab('employer')" class="px-6 py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs transition">
+            View Your Card in Employer Cockpit →
+          </button>
+        </div>
+      </div>
+
+    </div>
+
+
+    <!-- ==================== TAB 2: EMPLOYER COCKPIT ==================== -->
+    <div id="tab-employer" class="hidden space-y-8">
+      
+      <!-- Employer Trust Header -->
+      <div class="rounded-2xl bg-slate-900 border border-slate-800 p-6 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+        <div class="flex items-center gap-4">
+          <div class="w-14 h-14 rounded-2xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400 font-black text-2xl">
+            A
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <h2 class="text-xl font-bold text-white">Acme Systems</h2>
+              <span id="badge-employer-responsive" class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 text-xs font-bold">
+                <i data-lucide="badge-check" class="w-3.5 h-3.5"></i>
+                Verified Responsive Employer
+              </span>
+            </div>
+            <p class="text-xs text-slate-400 mt-1">Autonomous 72-Hour SLA Queue • Real-time Talent Liquidity</p>
+          </div>
+        </div>
+
+        <!-- Reputation Metrics -->
+        <div class="grid grid-cols-3 gap-3 text-center">
+          <div class="px-4 py-2 rounded-xl bg-slate-950 border border-slate-800">
+            <div class="text-[10px] uppercase font-semibold text-slate-400">Popularity Score</div>
+            <div id="metric-popularity" class="text-lg font-black text-emerald-400">98.2%</div>
+          </div>
+          <div class="px-4 py-2 rounded-xl bg-slate-950 border border-slate-800">
+            <div class="text-[10px] uppercase font-semibold text-slate-400">Avg Response</div>
+            <div id="metric-avg-hours" class="text-lg font-black text-cyan-400">26.0h</div>
+          </div>
+          <div class="px-4 py-2 rounded-xl bg-slate-950 border border-slate-800">
+            <div class="text-[10px] uppercase font-semibold text-slate-400">SLA Compliance</div>
+            <div id="metric-compliance" class="text-lg font-black text-emerald-400">99.1%</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Active Job Opening & Applicant Filter -->
+      <div class="flex items-center justify-between">
+        <div>
+          <h3 class="font-bold text-lg text-white">Active Job Opening: Senior Backend Engineer</h3>
+          <p class="text-xs text-slate-400">FastAPI, PostgreSQL, Redis • INR 14 - 22 LPA</p>
+        </div>
+        <div class="flex items-center gap-3 text-xs">
+          <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-bold">
+            <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+            <span id="label-fast-track-count">3 Fast-Track Candidates</span>
+          </span>
+          <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 text-slate-400 border border-slate-700 font-medium">
+            <i data-lucide="archive" class="w-3.5 h-3.5"></i>
+            <span>2,140 Cold Resumes Bypassed</span>
+          </span>
+        </div>
+      </div>
+
+      <!-- Dual Queue Display -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        <!-- Left 2 Cols: High-Priority Fast-Track Queue -->
+        <div class="lg:col-span-2 space-y-4">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <i data-lucide="rocket" class="w-5 h-5 text-cyan-400"></i>
+              <h4 class="font-bold text-white text-base">Verified Fast-Track Queue</h4>
+            </div>
+            <span class="text-xs text-slate-400">Ranked by Proof Composite Score</span>
+          </div>
+
+          <div id="list-fast-track" class="space-y-4">
+            <!-- Dynamically populated candidate cards -->
+          </div>
+        </div>
+
+        <!-- Right 1 Col: Deprioritized Cold Resume Spam Queue -->
+        <div class="space-y-4">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2 text-slate-400">
+              <i data-lucide="inbox" class="w-5 h-5"></i>
+              <h4 class="font-bold text-sm">Cold Queue (2,140 Resumes)</h4>
+            </div>
+            <span class="text-[10px] text-rose-400 font-bold uppercase tracking-wider">Unscreened</span>
+          </div>
+
+          <div class="rounded-xl bg-slate-900/60 border border-slate-800 p-4 space-y-3">
+            <p class="text-xs text-slate-400 leading-relaxed">
+              These applications were submitted via 1-click bot extensions and AI resume generators without verified git provenance or 5-minute proof of work.
+            </p>
+
+            <div id="list-cold-spam" class="space-y-2">
+              <!-- Dynamically populated spam representations -->
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- Modal: Disposition Action -->
+  <div id="modal-disposition" class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-2xl">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <h3 id="modal-disp-title" class="font-bold text-white text-base">Schedule Interview</h3>
+        <button onclick="closeDispositionModal()" class="text-slate-400 hover:text-white">✕</button>
+      </div>
+
+      <input type="hidden" id="modal-disp-appid">
+      <input type="hidden" id="modal-disp-action">
+
+      <div id="modal-disp-content" class="space-y-3">
+        <!-- Injected dynamically -->
+      </div>
+
+      <div class="flex justify-end gap-3 pt-3 border-t border-slate-800">
+        <button onclick="closeDispositionModal()" class="px-4 py-2 rounded-xl text-xs font-semibold text-slate-400 hover:text-white">
+          Cancel
+        </button>
+        <button id="modal-disp-confirm-btn" onclick="executeDisposition()" class="px-5 py-2 rounded-xl text-xs font-bold bg-cyan-500 hover:bg-cyan-400 text-slate-950">
+          Confirm Action
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toast" class="hidden fixed bottom-6 right-6 z-50 px-4 py-3 rounded-xl bg-slate-900 border border-cyan-500 text-white text-xs font-medium shadow-2xl flex items-center gap-2">
+    <i data-lucide="info" class="w-4 h-4 text-cyan-400"></i>
+    <span id="toast-msg">Notification</span>
+  </div>
+
+  <script src="/static/app.js"></script>
+  <script>
+    lucide.createIcons();
+  </script>
+</body>
+</html>
