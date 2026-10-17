@@ -253,6 +253,127 @@ async def run_db_connection_tests(local_scope: Dict[str, Any]) -> Dict[str, Any]
     }
 
 
+async def run_retry_storm_tests(local_scope: Dict[str, Any]) -> Dict[str, Any]:
+    """Test suite for network-retry-storm (Thundering herd & exponential backoff)."""
+    dispatch_webhook = local_scope.get("dispatch_webhook_with_retry")
+    if not dispatch_webhook:
+        return {
+            "success": False,
+            "passed": False,
+            "error": "Function 'dispatch_webhook_with_retry' was not found in the code.",
+            "test_results": [],
+            "stdout": "Error: Function 'dispatch_webhook_with_retry' definition missing.",
+        }
+
+    test_results = []
+    logs = ["=== Executing Distributed Resilience & Backoff Test Suite ==="]
+
+    class MockClient:
+        def __init__(self, fail_times=0):
+            self.fail_times = fail_times
+            self.calls = 0
+        async def post(self, url):
+            self.calls += 1
+            if self.calls <= self.fail_times:
+                raise RuntimeError("503 Service Unavailable")
+            return {"status": 200, "url": url}
+
+    # Intercept asyncio.sleep in local_scope
+    sleep_calls = []
+    real_sleep = asyncio.sleep
+    async def mock_sleep(d):
+        sleep_calls.append(d)
+        await real_sleep(0.001)
+
+    saved_sleep = local_scope.get("asyncio").sleep if ("asyncio" in local_scope and hasattr(local_scope["asyncio"], "sleep")) else None
+    if "asyncio" in local_scope and hasattr(local_scope["asyncio"], "sleep"):
+        local_scope["asyncio"].sleep = mock_sleep
+
+    # Test 1: Immediate success
+    t1_passed = False
+    client1 = MockClient(fail_times=0)
+    sleep_calls.clear()
+    try:
+        res = await dispatch_webhook(client1, "https://api.cloud/webhook", 3)
+        if client1.calls == 1 and len(sleep_calls) == 0 and res.get("status") == 200:
+            t1_passed = True
+            t1_msg = "Single attempt success: Webhook delivered cleanly on first try without delay."
+        else:
+            t1_msg = f"Unexpected calls ({client1.calls}) or sleeps ({len(sleep_calls)}) on clean request."
+    except Exception as e:
+        t1_msg = f"Error in immediate success test: {str(e)}"
+
+    test_results.append({
+        "name": "Single Attempt Baseline Test",
+        "passed": t1_passed,
+        "message": t1_msg,
+    })
+    logs.append(f"[{'PASS' if t1_passed else 'FAIL'}] Baseline: {t1_msg}")
+
+    # Test 2: Transient Failures with Exponential Backoff
+    t2_passed = False
+    client2 = MockClient(fail_times=2)
+    sleep_calls.clear()
+    try:
+        res = await dispatch_webhook(client2, "https://api.cloud/webhook", 4)
+        has_sleeps = len(sleep_calls) == 2
+        is_exponential = has_sleeps and sleep_calls[1] >= sleep_calls[0] and any(s >= 1 for s in sleep_calls)
+        if client2.calls == 3 and is_exponential:
+            t2_passed = True
+            t2_msg = f"Thundering herd prevented: Applied exponential backoff delays {[round(s, 2) for s in sleep_calls]}s."
+        else:
+            t2_msg = f"Backoff missing or not exponential: sleep delays = {sleep_calls}, attempts = {client2.calls}."
+    except Exception as e:
+        t2_msg = f"Error in exponential backoff test: {str(e)}"
+
+    test_results.append({
+        "name": "Exponential Backoff & Thundering Herd Test",
+        "passed": t2_passed,
+        "message": t2_msg,
+    })
+    logs.append(f"[{'PASS' if t2_passed else 'FAIL'}] Exponential Backoff: {t2_msg}")
+
+    # Test 3: Exhausted Retries Safety
+    t3_passed = False
+    client3 = MockClient(fail_times=10)
+    sleep_calls.clear()
+    try:
+        await dispatch_webhook(client3, "https://api.cloud/webhook", 3)
+        t3_msg = "Expected exception to re-raise after max_retries exhausted."
+    except RuntimeError:
+        if client3.calls == 3:
+            t3_passed = True
+            t3_msg = "Exception cleanly re-raised after exhausting max 3 retries."
+        else:
+            t3_msg = f"Wrong number of retry attempts ({client3.calls} instead of 3)."
+    except Exception as e:
+        t3_msg = f"Unexpected exception: {type(e).__name__}."
+
+    test_results.append({
+        "name": "Exhausted Retries Safety Test",
+        "passed": t3_passed,
+        "message": t3_msg,
+    })
+    logs.append(f"[{'PASS' if t3_passed else 'FAIL'}] Retry Exhaustion: {t3_msg}")
+
+    if saved_sleep and "asyncio" in local_scope:
+        local_scope["asyncio"].sleep = saved_sleep
+
+    passed_count = sum(1 for t in test_results if t["passed"])
+    total_count = len(test_results)
+    all_passed = passed_count == total_count
+
+    logs.append(f"\nResult: {passed_count}/{total_count} tests passed.")
+    return {
+        "success": True,
+        "passed": all_passed,
+        "total_tests": total_count,
+        "passed_tests": passed_count,
+        "test_results": test_results,
+        "stdout": "\n".join(logs),
+    }
+
+
 async def execute_code_sandbox(code: str, challenge_id: str = "fastapi-async-race") -> Dict[str, Any]:
     """Compiles and executes candidate code within an isolated async sandbox."""
     t_start = time.perf_counter()
@@ -300,8 +421,11 @@ async def execute_code_sandbox(code: str, challenge_id: str = "fastapi-async-rac
 
     # 3. Execution with Timeout
     try:
-        if "leak" in challenge_id.lower():
+        cid = challenge_id.lower()
+        if "leak" in cid:
             res = await asyncio.wait_for(run_db_connection_tests(local_scope), timeout=3.0)
+        elif "retry" in cid or "storm" in cid or "resilience" in cid:
+            res = await asyncio.wait_for(run_retry_storm_tests(local_scope), timeout=3.0)
         else:
             res = await asyncio.wait_for(run_token_bucket_tests(local_scope), timeout=3.0)
     except asyncio.TimeoutError:

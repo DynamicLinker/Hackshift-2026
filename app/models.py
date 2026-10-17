@@ -60,6 +60,7 @@ class AssessmentChallenge(BaseModel):
     bug_fix_instructions: str
     buggy_code_snippet: str
     expected_concept: str
+    filename: Optional[str] = "token_bucket.py"
     duration_seconds: int = 300
     started_at: str
     completed: bool = False

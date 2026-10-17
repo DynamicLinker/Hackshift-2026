@@ -121,3 +121,63 @@ def test_evaluate_submission_syntax_error(sample_candidate, sample_job):
 
     assert result["code_score"] == 10.0
     assert result["passed"] is False
+
+
+def test_job_specific_assessment_matching(sample_candidate):
+    """Verify that each job opening generates a tailored assessment relevant to its description and stack."""
+    from app.db.datastore import db
+
+    # 1. Acme Systems (Concurrency)
+    job_acme = db.get_job("job-backend-fastapi")
+    chal_acme = generate_challenge(sample_candidate, job_acme)
+    assert chal_acme.filename == "token_bucket.py"
+    assert "concurrency" in chal_acme.bug_fix_title.lower()
+    assert "Acme Systems" in chal_acme.self_repo_prompt
+    assert "delhi-transit-stream" in chal_acme.self_repo_prompt
+
+    # 2. Nova Labs (Database Connection Pools)
+    job_nova = db.get_job("job-mlops-nova")
+    chal_nova = generate_challenge(sample_candidate, job_nova)
+    assert chal_nova.filename == "db_repository.py"
+    assert "database connection leak" in chal_nova.bug_fix_title.lower()
+    assert "Nova Labs" in chal_nova.self_repo_prompt
+    assert "delhi-transit-stream" in chal_nova.self_repo_prompt
+
+    # 3. Phantom Corp (Distributed Resilience / Retry Storm)
+    job_phantom = db.get_job("job-devops-phantom")
+    chal_phantom = generate_challenge(sample_candidate, job_phantom)
+    assert chal_phantom.filename == "resilience_client.py"
+    assert "retry storm" in chal_phantom.bug_fix_title.lower()
+    assert "Phantom Corp" in chal_phantom.self_repo_prompt
+    assert "delhi-transit-stream" in chal_phantom.self_repo_prompt
+
+
+def test_evaluate_submission_retry_storm_passed(sample_candidate):
+    """Verify that submitting exponential backoff passes the retry storm evaluation."""
+    from app.db.datastore import db
+
+    job_phantom = db.get_job("job-devops-phantom")
+    challenge = generate_challenge(sample_candidate, job_phantom)
+
+    fixed_code = """
+import asyncio
+
+async def dispatch_webhook_with_retry(client, url: str, max_retries: int = 4):
+    for attempt in range(max_retries):
+        try:
+            return await client.post(url)
+        except Exception:
+            if attempt == max_retries - 1:
+                raise
+            await asyncio.sleep(min(2 ** attempt, 8))
+"""
+    submission = AssessmentSubmission(
+        challenge_id=challenge.id,
+        self_repo_explanation="In my transit stream repo, I implemented exponential backoff and jittered retries to protect downstream systems.",
+        fixed_code=fixed_code
+    )
+    result = evaluate_submission(challenge, submission)
+    assert result["passed"] is True
+    assert result["score"] >= 80.0
+    assert "Exponential backoff" in result["feedback"]
+

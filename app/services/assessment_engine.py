@@ -14,8 +14,9 @@ from app.models import AssessmentChallenge, AssessmentSubmission, CandidateProfi
 BUG_CHALLENGES = [
     {
         "id": "fastapi-async-race",
-        "stack": ["Python", "FastAPI"],
+        "stack": ["FastAPI", "Redis", "Concurrency"],
         "title": "Fix Concurrency Race Condition in Shared Token Bucket",
+        "filename": "token_bucket.py",
         "instructions": (
             "The following FastAPI dependency manages a high-throughput rate limiter. "
             "Under concurrent load, multiple async requests interleave and allow token overdraft. "
@@ -41,8 +42,9 @@ BUG_CHALLENGES = [
     },
     {
         "id": "db-connection-leak",
-        "stack": ["Python", "SQLAlchemy", "PostgreSQL"],
+        "stack": ["SQLAlchemy", "PostgreSQL", "Database", "AsyncIO"],
         "title": "Resolve Database Connection Leak in Async Repository",
+        "filename": "db_repository.py",
         "instructions": (
             "In this database query handler, unhandled exceptions leave database sessions open, "
             "exhausting the connection pool under load. Refactor using a proper try/finally block "
@@ -59,40 +61,80 @@ BUG_CHALLENGES = [
         "solution_keywords": ["finally:", "try:", "async with db_pool.acquire"],
         "concept": "Resource Management & Connection Pools",
     },
+    {
+        "id": "network-retry-storm",
+        "stack": ["Distributed Systems", "WebSockets", "AWS", "CI/CD"],
+        "title": "Prevent Thundering Herd Retry Storm with Jittered Exponential Backoff",
+        "filename": "resilience_client.py",
+        "instructions": (
+            "In this distributed webhook dispatcher, upstream service failures trigger instantaneous retries, "
+            "creating a thundering herd storm that overloads downstream systems. "
+            "Implement exponential backoff using `asyncio.sleep(2 ** attempt)` with a maximum capped delay."
+        ),
+        "buggy_code": (
+            "import asyncio\n\n"
+            "async def dispatch_webhook_with_retry(client, url: str, max_retries: int = 4):\n"
+            "    for attempt in range(max_retries):\n"
+            "        try:\n"
+            "            return await client.post(url)\n"
+            "        except Exception:\n"
+            "            # BUG: Immediate tight-loop retry without backoff causes thundering herd\n"
+            "            if attempt == max_retries - 1:\n"
+            "                raise\n"
+        ),
+        "solution_keywords": ["asyncio.sleep", "2 ** attempt", "2**attempt", "backoff", "min("],
+        "concept": "Distributed Resilience & Exponential Backoff",
+    },
 ]
 
 
 def generate_challenge(candidate: CandidateProfile, job: Job) -> AssessmentChallenge:
-    """Dynamically generates a 5-minute micro-assessment challenge for the candidate."""
+    """Dynamically generates a 5-minute micro-assessment challenge tailored specifically to the target job description."""
     now_iso = datetime.now(timezone.utc).isoformat()
     challenge_id = f"chal_{uuid.uuid4().hex[:10]}"
 
-    # 1. Generate Self-Repo Comprehension Prompt
-    top_repo = candidate.audited_repos[0] if candidate.audited_repos else None
-    if top_repo:
-        repo_name = top_repo.repo_name
-        target_file = "core/handlers.py" if "python" in top_repo.primary_language.lower() else "src/index.ts"
-        target_line = 42
-        self_prompt = (
-            f"In your repository '{repo_name}' (around {target_file}:{target_line}), "
-            f"explain how your system handles connection dropouts, concurrency, or backpressure "
-            f"under burst traffic, and why you selected this architectural pattern over naive polling."
-        )
-    else:
-        repo_name = f"{candidate.github_username}-portfolio"
-        target_file = "app/main.py"
-        target_line = 35
-        self_prompt = (
-            f"In your core repository '{repo_name}', explain how your main service architecture "
-            f"manages request state and error propagation."
-        )
-
-    # 2. Select matching debugging challenge
+    # 1. Match challenge template to job description and stack tags
     challenge_template = BUG_CHALLENGES[0]
     for ch in BUG_CHALLENGES:
         if any(tag.lower() in [s.lower() for s in job.stack_tags] for tag in ch["stack"]):
             challenge_template = ch
             break
+        if ch["id"] in job.id.lower():
+            challenge_template = ch
+            break
+
+    # 2. Generate Self-Repo Comprehension Prompt tailored specifically to job & company
+    top_repo = candidate.audited_repos[0] if candidate.audited_repos else None
+    if top_repo:
+        repo_name = top_repo.repo_name
+        target_file = "core/handlers.py" if "python" in top_repo.primary_language.lower() else "src/index.ts"
+        target_line = 42
+    else:
+        repo_name = f"{candidate.github_username}-portfolio"
+        target_file = "app/main.py"
+        target_line = 35
+
+    concept_lower = challenge_template["concept"].lower()
+    if "concurrency" in concept_lower:
+        theme = (
+            f"defend your concurrency architecture. How does your service serialize concurrent requests, "
+            f"prevent race conditions on shared memory, and enforce backpressure under traffic spikes?"
+        )
+    elif "resource" in concept_lower or "connection" in concept_lower:
+        theme = (
+            f"defend your resource pooling architecture. How does your service prevent unhandled exception leaks, "
+            f"manage connection timeouts, and recover exhausted database pools?"
+        )
+    else:
+        theme = (
+            f"defend your distributed resilience architecture. How does your architecture mitigate cascading network failures, "
+            f"apply exponential backoff with jitter across network boundaries, and ensure idempotent processing?"
+        )
+
+    self_prompt = (
+        f"For the '{job.title}' role at {job.company_name}: In your repository '{repo_name}' "
+        f"(around {target_file}:{target_line}), {theme} Explain your architectural rationale over naive implementations."
+    )
 
     return AssessmentChallenge(
         id=challenge_id,
@@ -106,6 +148,7 @@ def generate_challenge(candidate: CandidateProfile, job: Job) -> AssessmentChall
         bug_fix_instructions=challenge_template["instructions"],
         buggy_code_snippet=challenge_template["buggy_code"],
         expected_concept=challenge_template["concept"],
+        filename=challenge_template.get("filename", "token_bucket.py"),
         duration_seconds=300,
         started_at=now_iso,
         completed=False,
@@ -147,7 +190,8 @@ def evaluate_submission(
     relevant_keywords = [
         "concurrency", "lock", "async", "thread", "queue", "redis", "polling",
         "pub/sub", "disconnect", "cleanup", "backpressure", "pool", "socket",
-        "buffer", "state", "token", "scale", "performance", "atomic"
+        "buffer", "state", "token", "scale", "performance", "atomic",
+        "retry", "backoff", "exponential", "jitter", "idempotent", "resilience", "stream"
     ]
     matched_words = [kw for kw in relevant_keywords if kw in explanation.lower()]
     
@@ -174,19 +218,41 @@ def evaluate_submission(
         code_score = 10.0
         code_feedback.append("Syntax error in submitted code.")
     else:
-        # Check for solution keywords and improvements over buggy code
-        if "lock" in fixed_code.lower() and ("async with" in fixed_code or "with" in fixed_code or "acquire" in fixed_code):
-            code_score = 50.0
-            code_feedback.append("Successfully acquired concurrency lock before modifying shared state.")
-        elif "finally:" in fixed_code or "try:" in fixed_code or "async with" in fixed_code:
-            code_score = 48.0
-            code_feedback.append("Resource cleanup pattern implemented safely.")
-        elif fixed_code != challenge.buggy_code_snippet.strip():
-            code_score = 30.0
-            code_feedback.append("Code modified but missed optimal concurrency primitive.")
+        # Check for solution keywords matched to the specific challenge domain
+        concept_lower = challenge.expected_concept.lower()
+        if "backoff" in concept_lower or "resilience" in concept_lower or "retry" in concept_lower:
+            if ("asyncio.sleep" in fixed_code or "sleep(" in fixed_code) and (
+                "2 ** attempt" in fixed_code or "2**attempt" in fixed_code or "backoff" in fixed_code or "min(" in fixed_code
+            ):
+                code_score = 50.0
+                code_feedback.append("Exponential backoff implemented to prevent thundering herd retry storms.")
+            elif fixed_code != challenge.buggy_code_snippet.strip():
+                code_score = 30.0
+                code_feedback.append("Code modified but missed optimal exponential backoff delay.")
+            else:
+                code_score = 10.0
+                code_feedback.append("Code unmodified from buggy starter template.")
+        elif "resource" in concept_lower or "connection" in concept_lower or "pool" in concept_lower:
+            if "finally:" in fixed_code or "async with" in fixed_code or ("try:" in fixed_code and "release" in fixed_code):
+                code_score = 50.0
+                code_feedback.append("Resource cleanup pattern implemented safely.")
+            elif fixed_code != challenge.buggy_code_snippet.strip():
+                code_score = 30.0
+                code_feedback.append("Code modified but missed optimal cleanup block.")
+            else:
+                code_score = 10.0
+                code_feedback.append("Code unmodified from buggy starter template.")
         else:
-            code_score = 10.0
-            code_feedback.append("Code unmodified from buggy starter template.")
+            # Concurrency & Token Bucket
+            if "lock" in fixed_code.lower() and ("async with" in fixed_code or "with" in fixed_code or "acquire" in fixed_code):
+                code_score = 50.0
+                code_feedback.append("Successfully acquired concurrency lock before modifying shared state.")
+            elif fixed_code != challenge.buggy_code_snippet.strip():
+                code_score = 30.0
+                code_feedback.append("Code modified but missed optimal concurrency primitive.")
+            else:
+                code_score = 10.0
+                code_feedback.append("Code unmodified from buggy starter template.")
 
     # 4. Composite Assessment Score
     total_score = round(min(100.0, explanation_score + code_score), 1)
