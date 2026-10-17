@@ -1,10 +1,12 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 import os
 
 from app.config import settings
 from app.db.datastore import db
+from app.routers import candidate, employer
 
 app = FastAPI(
     title=settings.app_name,
@@ -25,6 +27,10 @@ os.makedirs("app/static", exist_ok=True)
 os.makedirs("app/templates", exist_ok=True)
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
+# Include Routers
+app.include_router(candidate.router)
+app.include_router(employer.router)
+
 @app.get("/api/health")
 def health_check():
     return {
@@ -33,4 +39,15 @@ def health_check():
         "environment": settings.environment,
         "companies_loaded": len(db.companies),
         "jobs_loaded": len(db.jobs),
+    }
+
+@app.get("/")
+def serve_index():
+    index_path = os.path.join("app", "static", "index.html")
+    if os.path.exists(index_path):
+        return FileResponse(index_path)
+    return {
+        "app": "ProofHired API",
+        "docs": "/docs",
+        "health": "/api/health"
     }
