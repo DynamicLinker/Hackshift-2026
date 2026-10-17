@@ -87,3 +87,38 @@ def test_time_simulation_slider_penalizes_company():
     assert res_80.status_code == 200
     data_80 = res_80.json()
     assert data_80["active_breaches"] >= 1
+
+
+def test_candidate_status_board_isolation_iiitd_dev():
+    """Verify Candidate Portal strictly isolates the candidate's own applications across companies."""
+    res = client.get("/api/employer/all-applications?candidate_username=iiitd-dev")
+    assert res.status_code == 200
+    items = res.json()
+    assert len(items) >= 3
+
+    # All items must belong strictly to iiitd-dev
+    for item in items:
+        assert item["application"]["github_username"] == "iiitd-dev"
+        assert item["candidate"]["github_username"] == "iiitd-dev"
+        assert item["candidate"]["full_name"] == "Aarav Sharma"
+
+    # Must show applications across different companies
+    companies = {item["job"]["company_name"] for item in items}
+    assert "Acme Systems" in companies
+    assert "Nova Labs" in companies
+    assert "Phantom Corp" in companies
+
+    # Ensure other candidates (Priya, Devendra) are NOT present
+    usernames = {item["application"]["github_username"] for item in items}
+    assert "priya-systems" not in usernames
+    assert "dev-rao" not in usernames
+
+
+def test_candidate_status_board_isolation_ai_spammer():
+    """Verify that a spammer profile has no unauthorized fast-track applications."""
+    res = client.get("/api/employer/all-applications?candidate_username=ai-spammer")
+    assert res.status_code == 200
+    items = res.json()
+    # Spammer profile should have 0 fast-track applications and no data from other candidates
+    assert len(items) == 0
+
