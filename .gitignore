@@ -8,3 +8,10 @@ __pycache__/
 .pytest_cache/
 *.egg-info/
 .DS_Store
+*.log
+.vscode/
+.idea/
+
+# Ignore all markdown files
+*.md
+!README.md
