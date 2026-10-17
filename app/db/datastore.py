@@ -58,6 +58,7 @@ class DataStore:
             description="Build high-throughput distributed APIs, manage token-bucket rate limiters, and prevent async race conditions under load.",
             experience_level="Mid / Senior",
             salary_range="INR 14 - 22 LPA",
+            created_at=(now - timedelta(hours=24)).isoformat(),
         )
         job2 = Job(
             id="job-fullstack-node",
@@ -68,6 +69,7 @@ class DataStore:
             description="Architect real-time collaborative interfaces and high-throughput microservices.",
             experience_level="Junior / Mid",
             salary_range="INR 12 - 16 LPA",
+            created_at=(now - timedelta(hours=30)).isoformat(),
         )
         job3 = Job(
             id="job-mlops-nova",
@@ -78,6 +80,7 @@ class DataStore:
             description="Design fault-tolerant database access layers, connection pool architectures, and zero-leak transaction management.",
             experience_level="Senior",
             salary_range="INR 18 - 28 LPA",
+            created_at=(now - timedelta(hours=36)).isoformat(),
         )
         job4 = Job(
             id="job-devops-phantom",
@@ -88,6 +91,7 @@ class DataStore:
             description="Build resilient inter-service communication protocols, circuit breakers, and exponential backoff retry engines.",
             experience_level="Senior",
             salary_range="INR 20 - 32 LPA",
+            created_at=(now - timedelta(hours=48)).isoformat(),
         )
         for j in [job1, job2, job3, job4]:
             self.jobs[j.id] = j
@@ -218,7 +222,7 @@ class DataStore:
     # ── Job CRUD ──────────────────────────────────────────────────────────────
     def list_jobs(self) -> List[Job]:
         with self._lock:
-            return list(self.jobs.values())
+            return sorted(list(self.jobs.values()), key=lambda j: j.created_at, reverse=True)
 
     def get_job(self, job_id: str) -> Optional[Job]:
         with self._lock:

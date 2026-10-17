@@ -277,6 +277,9 @@
             </span>
           </div>
 
+          <!-- Dynamic Job Match Alert Banner (appears when new job is posted or high match exists) -->
+          <div id="container-job-match-alert" class="hidden slide-in"></div>
+
           <!-- The Job Cards Grid -->
           <div id="grid-candidate-jobs" class="space-y-3">
             <!-- Dynamically populated by JS: Clean, interactive role cards -->
@@ -558,11 +561,18 @@
                   <span id="challenge-editor-filename" class="text-emerald-400 font-semibold">token_bucket.py</span>
                   <span class="text-[10px] text-slate-500">· Async Sandbox</span>
                 </div>
-                <button type="button" id="btn-run-code" onclick="runSandboxCode()"
-                  class="px-3 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs flex items-center gap-1.5 shadow-sm transition active:scale-95">
-                  <i data-lucide="play" class="w-3 h-3"></i>
-                  <span>Run Code & Tests</span>
-                </button>
+                <div class="flex items-center gap-2">
+                  <button type="button" id="btn-autofill-solution" onclick="autofillChallengeSolution()"
+                    class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white font-mono text-[11px] flex items-center gap-1 border border-slate-700 transition" title="Auto-fill verified fix & rationale for rapid demo">
+                    <i data-lucide="sparkles" class="w-3 h-3 text-amber-400"></i>
+                    <span>Auto-Fill Solution</span>
+                  </button>
+                  <button type="button" id="btn-run-code" onclick="runSandboxCode()"
+                    class="px-3 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs flex items-center gap-1.5 shadow-sm transition active:scale-95">
+                    <i data-lucide="play" class="w-3 h-3"></i>
+                    <span>Run Code & Tests</span>
+                  </button>
+                </div>
               </div>
               <textarea id="input-code-editor" rows="12"
                 class="w-full p-3.5 bg-slate-950 text-emerald-400 font-mono text-xs leading-relaxed focus:outline-none resize-y"></textarea>

@@ -93,3 +93,100 @@ def test_candidate_ownership_verification_status():
     bot_data = resp_bot.json()
     assert "unverified" in bot_data["ownership_status"].lower()
     assert bot_data["author_match_rate"] < 50.0
+
+
+def test_employer_post_job_candidate_match_and_apply_flow():
+    # 1. Employer submits a new job opening in the Employer Cockpit
+    job_payload = {
+        "company_id": "comp-acme",
+        "title": "Real-Time Distributed Streaming Architect",
+        "stack_tags": ["Go", "Distributed Systems", "gRPC", "WebSockets"],
+        "experience_level": "Senior",
+        "salary_range": "INR 24 - 36 LPA",
+        "description": "Design zero-packet-drop streaming ingestion pipelines with exponential backoff resilience.",
+    }
+    resp = client.post("/api/employer/jobs", json=job_payload)
+    assert resp.status_code == 200
+    new_job = resp.json()
+    job_id = new_job["id"]
+    assert new_job["title"] == job_payload["title"]
+    assert "Go" in new_job["stack_tags"]
+
+    # 2. Candidate side lists jobs - newly submitted job is at index 0 (newest first)
+    list_resp = client.get("/api/employer/jobs")
+    assert list_resp.status_code == 200
+    jobs_data = list_resp.json()
+    assert len(jobs_data) >= 1
+    assert jobs_data[0]["job"]["id"] == job_id
+
+    # 3. Candidate audits their GitHub
+    audit_resp = client.post("/api/candidate/audit", json={"github_username": "iiitd-dev"})
+    assert audit_resp.status_code == 200
+    candidate = audit_resp.json()
+    assert candidate["commit_topology_status"] == "verified_human"
+    assert candidate["fast_track_qualified"] is True
+
+    # 4. Candidate takes the 5-minute micro-assessment tailored to this new role
+    start_resp = client.post(
+        "/api/candidate/assessment/start",
+        json={"candidate_id": candidate["id"], "job_id": job_id},
+    )
+    assert start_resp.status_code == 200
+    challenge = start_resp.json()
+    assert challenge["job_id"] == job_id
+    assert "Real-Time Distributed Streaming Architect" in challenge["self_repo_prompt"]
+    assert challenge["completed"] is False
+
+    # 5. Candidate submits the code fix & self-repo defense
+    fixed_code = (
+        "import asyncio\n\n"
+        "async def dispatch_webhook_with_retry(client, url: str, max_retries: int = 4):\n"
+        "    for attempt in range(max_retries):\n"
+        "        try:\n"
+        "            return await client.post(url)\n"
+        "        except Exception:\n"
+        "            if attempt == max_retries - 1:\n"
+        "                raise\n"
+        "            delay = min(2.0, 0.1 * (2 ** attempt))\n"
+        "            await asyncio.sleep(delay)\n"
+    )
+    submit_resp = client.post(
+        "/api/candidate/assessment/submit",
+        json={
+            "challenge_id": challenge["id"],
+            "self_repo_explanation": "Defended consensus and distributed resilience in micro-raft-consensus with jittered exponential backoff and lock recovery.",
+            "fixed_code": fixed_code,
+        },
+    )
+    assert submit_resp.status_code == 200
+    sub_data = submit_resp.json()
+    assert sub_data["evaluation"]["passed"] is True
+    assert sub_data["application"] is not None
+    app_id = sub_data["application"]["application_id"]
+    assert sub_data["application"]["queue_type"] == "fast_track"
+    assert sub_data["application"]["fast_track_rank"] == 1
+
+    # 6. Employer Cockpit reflects the candidate in the Fast-Track Queue for the new job
+    emp_queue_resp = client.get(f"/api/employer/jobs/{job_id}/applications")
+    assert emp_queue_resp.status_code == 200
+    queue_data = emp_queue_resp.json()
+    assert queue_data["fast_track_total"] >= 1
+    top_cand = queue_data["fast_track_queue"][0]
+    assert top_cand["application"]["id"] == app_id
+    assert top_cand["candidate"]["github_username"] == "iiitd-dev"
+    assert top_cand["sla"]["status"] == "within_sla"
+    assert top_cand["sla"]["is_breached"] is False
+
+    # 7. Employer issues 1-click offer disposition
+    disp_resp = client.post(
+        "/api/employer/disposition",
+        json={
+            "application_id": app_id,
+            "action": "approve_offer",
+            "note": "Exceptional distributed systems backoff fix. Approved for immediate offer.",
+        },
+    )
+    assert disp_resp.status_code == 200
+    assert disp_resp.json()["success"] is True
+    assert disp_resp.json()["new_status"] == "approved_offer"
+
