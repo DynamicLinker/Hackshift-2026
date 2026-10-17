@@ -19,7 +19,9 @@ router = APIRouter(prefix="/api/candidate", tags=["Candidate"])
 
 
 class AuditRequest(BaseModel):
-    github_username: str = Field(..., description="GitHub username without @ prefix")
+    github_username: Optional[str] = Field(None, description="GitHub username without @ prefix")
+    repo_url: Optional[str] = Field(None, description="Full GitHub repository URL or owner/repo to clone")
+    gemini_api_key: Optional[str] = Field(None, description="Optional Gemini API key for deep reasoning")
 
 
 class StartAssessmentRequest(BaseModel):
@@ -35,12 +37,25 @@ class SubmitAssessmentRequest(BaseModel):
 
 @router.post("/audit", response_model=CandidateProfile)
 async def audit_candidate_github(payload: AuditRequest):
-    """Audits repository commit topology, history, and tech stack provenance."""
-    username = payload.github_username.strip()
-    if not username:
-        raise HTTPException(status_code=400, detail="GitHub username is required.")
+    """Audits repository commit topology, history, and tech stack provenance.
+    Supports live cloning and optional Gemini API reasoning.
+    """
+    username = (payload.github_username or "").strip().lstrip("@")
+    repo_url = (payload.repo_url or "").strip()
 
-    profile = await analyze_github_user(username)
+    if not username and not repo_url:
+        raise HTTPException(status_code=400, detail="Either GitHub username or repository URL is required.")
+
+    if not username and repo_url:
+        # Infer username from repo url e.g. https://github.com/torvalds/linux -> torvalds
+        parts = repo_url.rstrip("/").split("/")
+        username = parts[-2] if len(parts) >= 2 else "developer"
+
+    profile = await analyze_github_user(
+        username=username,
+        repo_url=repo_url if repo_url else None,
+        gemini_api_key=payload.gemini_api_key,
+    )
     db.save_candidate(profile)
     return profile
 
