@@ -119,7 +119,7 @@ def process_disposition(
     }
 
 
-def audit_company_reputation(company_id: str, db_instance = None) -> Dict[str, Any]:
+def audit_company_reputation(company_id: str, db_instance = None, current_time_iso: Optional[str] = None) -> Dict[str, Any]:
     """Audits company's overall responsiveness across all active candidate queues."""
     datastore = db_instance or default_db
     company = datastore.get_company(company_id)
@@ -130,7 +130,7 @@ def audit_company_reputation(company_id: str, db_instance = None) -> Dict[str, A
     total_apps = 0
     resolved_apps = 0
     breached_apps = 0
-    now_iso = datetime.now(timezone.utc).isoformat()
+    now_iso = current_time_iso or datetime.now(timezone.utc).isoformat()
 
     for job in company_jobs:
         apps = datastore.list_applications_for_job(job.id)

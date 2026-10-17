@@ -3,10 +3,16 @@
 Analyzes GitHub repository commit history, commit velocity, and message
 distributions to distinguish authentic progressive engineering from one-click
 bulk AI/fork dumps.
+Supports real git cloning to local cache, AST analysis, and optional Google Gemini
+API reasoning when an API key is provided.
 """
 
+import os
+import re
 import hashlib
-from typing import List, Dict, Any, Optional
+import subprocess
+from pathlib import Path
+from typing import List, Dict, Any, Optional, Tuple
 import httpx
 from app.models import CandidateProfile, RepositoryAudit
 
@@ -127,7 +133,7 @@ DEMO_PROFILES: Dict[str, Dict[str, Any]] = {
 }
 
 
-def _evaluate_commits_topology(commits: List[Dict[str, Any]]) -> tuple[str, float]:
+def _evaluate_commits_topology(commits: List[Dict[str, Any]]) -> Tuple[str, float]:
     """Analyzes commit list history for progressive development vs bulk dumps."""
     count = len(commits)
     if count <= 1:
@@ -210,20 +216,206 @@ def _synthesize_fallback_profile(username: str) -> CandidateProfile:
     )
 
 
-async def analyze_github_user(username: str) -> CandidateProfile:
+async def call_gemini_analysis(
+    repo_name: str,
+    commit_log_sample: str,
+    detected_tech: List[str],
+    api_key: Optional[str] = None
+) -> Optional[str]:
+    """Calls Google Gemini API (gemini-2.5-flash) to evaluate code provenance and architecture."""
+    key = api_key or os.environ.get("GEMINI_API_KEY")
+    if not key:
+        return None
+
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={key}"
+    prompt = (
+        f"You are the ProofHired Code Provenance Auditor.\n"
+        f"Repository: {repo_name}\n"
+        f"Detected Tech Stack: {', '.join(detected_tech)}\n"
+        f"Recent Git Commit Log Sample:\n{commit_log_sample[:1500]}\n\n"
+        f"Provide a concise 2-sentence technical evaluation of whether this codebase demonstrates authentic, "
+        f"progressive human development versus a one-commit AI/fork dump, highlighting architectural patterns."
+    )
+    payload = {"contents": [{"parts": [{"text": prompt}]}]}
+
+    try:
+        async with httpx.AsyncClient(timeout=8.0) as client:
+            resp = await client.post(url, json=payload)
+            if resp.status_code == 200:
+                data = resp.json()
+                candidates = data.get("candidates", [])
+                if candidates:
+                    parts = candidates[0].get("content", {}).get("parts", [])
+                    if parts:
+                        return parts[0].get("text", "").strip()
+    except Exception as e:
+        print(f"Gemini API analysis skipped or error: {e}")
+    return None
+
+
+def clone_and_inspect_repo(
+    repo_url_or_slug: str,
+    target_cache_dir: Optional[str] = None
+) -> Tuple[RepositoryAudit, str, str]:
+    """Clones a git repository shallowly into local cache, parses commits, and inspects root dependencies.
+    
+    Returns (RepositoryAudit, commit_log_sample, repo_name).
+    """
+    cleaned = repo_url_or_slug.strip().rstrip("/")
+    if os.path.isdir(cleaned):
+        cache_dir = cleaned
+        repo_name = os.path.basename(cleaned)
+        owner_name = "local"
+        repo_url = f"file://{cleaned}"
+    elif cleaned.startswith("http://") or cleaned.startswith("https://") or cleaned.startswith("file://"):
+        repo_url = cleaned
+        # Extract owner/repo name
+        parts = cleaned.split("/")
+        repo_name = parts[-1].replace(".git", "")
+        owner_name = parts[-2] if len(parts) >= 2 else "user"
+        cache_dir = target_cache_dir or f"/tmp/proofhired_cache/{owner_name}_{repo_name}"
+    elif "/" in cleaned:
+        owner_name, repo_name = cleaned.split("/", 1)
+        repo_url = f"https://github.com/{owner_name}/{repo_name}.git"
+        cache_dir = target_cache_dir or f"/tmp/proofhired_cache/{owner_name}_{repo_name}"
+    else:
+        owner_name = "developer"
+        repo_name = cleaned
+        repo_url = f"https://github.com/{owner_name}/{repo_name}.git"
+        cache_dir = target_cache_dir or f"/tmp/proofhired_cache/{owner_name}_{repo_name}"
+
+    # Clone if not already cached and not a local directory
+    if not os.path.exists(cache_dir):
+        os.makedirs(os.path.dirname(cache_dir), exist_ok=True)
+        try:
+            cmd = ["git", "clone", "--depth", "35", repo_url, cache_dir]
+            subprocess.run(cmd, capture_output=True, text=True, timeout=12)
+        except Exception:
+            pass
+
+    # Read commits via git command
+    commits_data: List[Dict[str, Any]] = []
+    log_sample = ""
+    total_commits = 1
+
+    if os.path.exists(cache_dir):
+        try:
+            c_res = subprocess.run(["git", "rev-list", "--count", "HEAD"], cwd=cache_dir, capture_output=True, text=True)
+            if c_res.returncode == 0 and c_res.stdout.strip().isdigit():
+                total_commits = int(c_res.stdout.strip())
+        except Exception:
+            pass
+
+        try:
+            l_res = subprocess.run(
+                ["git", "log", "-n", "30", "--pretty=format:%h|%an|%aI|%s"],
+                cwd=cache_dir,
+                capture_output=True,
+                text=True
+            )
+            if l_res.returncode == 0:
+                log_sample = l_res.stdout
+                for line in l_res.stdout.splitlines():
+                    p = line.split("|", 3)
+                    if len(p) == 4:
+                        commits_data.append({"commit": {"message": p[3]}, "date": p[2]})
+        except Exception:
+            pass
+
+    # Detect tech stack from directory files
+    primary_lang = "Python"
+    tech_tags: List[str] = []
+    p = Path(cache_dir) if os.path.exists(cache_dir) else None
+
+    if p and p.exists():
+        if (p / "pyproject.toml").exists() or (p / "requirements.txt").exists():
+            primary_lang = "Python"
+            tech_tags.append("Python")
+            try:
+                txt = (p / "requirements.txt").read_text(errors="ignore") if (p / "requirements.txt").exists() else ""
+                if "fastapi" in txt.lower(): tech_tags.append("FastAPI")
+                if "pydantic" in txt.lower(): tech_tags.append("Pydantic")
+                if "redis" in txt.lower(): tech_tags.append("Redis")
+                if "docker" in txt.lower() or (p / "Dockerfile").exists(): tech_tags.append("Docker")
+            except Exception:
+                pass
+        elif (p / "package.json").exists():
+            primary_lang = "TypeScript" if (p / "tsconfig.json").exists() else "JavaScript"
+            tech_tags.append(primary_lang)
+            try:
+                pkg = (p / "package.json").read_text(errors="ignore")
+                if "react" in pkg.lower(): tech_tags.append("React")
+                if "next" in pkg.lower(): tech_tags.append("Next.js")
+                if "node" in pkg.lower(): tech_tags.append("Node.js")
+            except Exception:
+                pass
+        elif (p / "go.mod").exists():
+            primary_lang = "Go"
+            tech_tags.extend(["Go", "Distributed Systems"])
+        elif (p / "Cargo.toml").exists():
+            primary_lang = "Rust"
+            tech_tags.extend(["Rust", "Systems"])
+
+    if not tech_tags:
+        tech_tags = [primary_lang, "Git", "REST"]
+
+    dist, rating = _evaluate_commits_topology(commits_data)
+    audit = RepositoryAudit(
+        repo_name=repo_name,
+        primary_language=primary_lang,
+        total_commits=max(total_commits, len(commits_data)),
+        commit_distribution=dist,
+        key_technologies=tech_tags,
+        provenance_rating=rating,
+        repo_url=repo_url,
+    )
+    return audit, log_sample, repo_name
+
+
+async def analyze_github_user(
+    username: str,
+    repo_url: Optional[str] = None,
+    gemini_api_key: Optional[str] = None
+) -> CandidateProfile:
     """Fetches candidate profile, audits repository commit history, and evaluates provenance.
     
-    Uses live GitHub REST API with 3.5s timeout, falling back automatically to
-    deterministic simulation if rate-limited (HTTP 403) or offline.
+    If repo_url is provided, performs actual local git cloning and inspection.
+    If gemini_api_key is provided, augments with AI architectural verification.
     """
-    clean_user = username.strip().lstrip("@").lower()
-    if not clean_user:
-        clean_user = "iiitd-dev"
+    clean_user = username.strip().lstrip("@").lower() if username else "iiitd-dev"
+
+    # If direct repo URL provided, clone and analyze it locally!
+    if repo_url and repo_url.strip():
+        audit, log_sample, repo_name = clone_and_inspect_repo(repo_url)
+        gemini_text = await call_gemini_analysis(repo_name, log_sample, audit.key_technologies, gemini_api_key)
+        if gemini_text:
+            audit.gemini_summary = gemini_text
+
+        is_verified = audit.provenance_rating >= 70.0
+        return CandidateProfile(
+            id=f"cand_{clean_user}",
+            github_username=clean_user,
+            full_name=f"{clean_user.capitalize()} (Cloned Repo Audit)",
+            avatar_url="https://avatars.githubusercontent.com/u/8942111?v=4",
+            bio=f"Verified through local git clone of {audit.repo_name}.",
+            is_bot=not is_verified,
+            git_provenance_score=audit.provenance_rating,
+            commit_topology_status="verified_human" if is_verified else "flagged_bulk_dump",
+            audited_repos=[audit],
+            credibility_score=round(audit.provenance_rating * 0.98, 1),
+            fast_track_qualified=is_verified,
+            cloned_locally=True,
+            gemini_analysis=gemini_text,
+        )
 
     # 1. Check curated demo profiles first for instantaneous zero-latency stage demo
     if clean_user in DEMO_PROFILES:
         p = DEMO_PROFILES[clean_user]
         audited = [RepositoryAudit(**r) for r in p["audited_repos"]]
+        gemini_text = None
+        if gemini_api_key:
+            gemini_text = await call_gemini_analysis(audited[0].repo_name, "feat: implement caching\nfix: race condition", audited[0].key_technologies, gemini_api_key)
+
         return CandidateProfile(
             id=f"cand_{clean_user}",
             github_username=clean_user,
@@ -236,6 +428,7 @@ async def analyze_github_user(username: str) -> CandidateProfile:
             audited_repos=audited,
             credibility_score=p["credibility_score"],
             fast_track_qualified=p["fast_track_qualified"],
+            gemini_analysis=gemini_text,
         )
 
     # 2. Attempt live GitHub API queries
@@ -261,7 +454,6 @@ async def analyze_github_user(username: str) -> CandidateProfile:
                     repo_name = r.get("name", "repo")
                     lang = r.get("language") or "Python"
                     
-                    # Fetch commit count/sample
                     commits_res = await client.get(
                         f"https://api.github.com/repos/{clean_user}/{repo_name}/commits?per_page=10",
                         headers={"User-Agent": "ProofHired-Provenance/1.0"}
@@ -281,15 +473,12 @@ async def analyze_github_user(username: str) -> CandidateProfile:
                             commit_distribution=dist,
                             key_technologies=tech_tags,
                             provenance_rating=rating,
+                            repo_url=r.get("html_url"),
                         )
                     )
                     total_provenance += rating
 
-                if audited_repos:
-                    avg_provenance = round(total_provenance / len(audited_repos), 1)
-                else:
-                    avg_provenance = 60.0
-
+                avg_provenance = round(total_provenance / len(audited_repos), 1) if audited_repos else 60.0
                 is_verified = avg_provenance >= 70.0
 
                 return CandidateProfile(
@@ -306,7 +495,6 @@ async def analyze_github_user(username: str) -> CandidateProfile:
                     fast_track_qualified=is_verified,
                 )
     except Exception:
-        # Fall back gracefully to deterministic synthesized telemetry profile
         pass
 
     return _synthesize_fallback_profile(clean_user)

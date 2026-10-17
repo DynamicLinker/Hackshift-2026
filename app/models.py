@@ -30,6 +30,8 @@ class RepositoryAudit(BaseModel):
     commit_distribution: str  # "progressive_iterative" or "single_bulk_dump"
     key_technologies: List[str]
     provenance_rating: float  # 0 to 100
+    repo_url: Optional[str] = None
+    gemini_summary: Optional[str] = None
 
 class CandidateProfile(BaseModel):
     id: str
@@ -43,6 +45,8 @@ class CandidateProfile(BaseModel):
     audited_repos: List[RepositoryAudit] = []
     credibility_score: float = 0.0
     fast_track_qualified: bool = False
+    cloned_locally: bool = False
+    gemini_analysis: Optional[str] = None
 
 class AssessmentChallenge(BaseModel):
     id: str

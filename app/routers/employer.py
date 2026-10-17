@@ -4,7 +4,7 @@ Provides job management, dual-queue candidate inspection (Fast-Track vs Spam Que
 live 72-hour anti-ghosting SLA metrics, and 1-click candidate disposition.
 """
 
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import List, Dict, Any, Optional
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
@@ -22,23 +22,28 @@ router = APIRouter(prefix="/api/employer", tags=["Employer"])
 
 class DispositionRequest(BaseModel):
     application_id: str
-    action: str  # "schedule_interview" or "reject_with_feedback"
+    action: str  # "schedule_interview" or "reject_with_feedback" or "simulate_ghost"
     note: Optional[str] = None
     interview_time: Optional[str] = None
 
 
+class GhostRequest(BaseModel):
+    application_id: str
+
+
 @router.get("/company/{company_id}")
-def get_company_profile(company_id: str):
+def get_company_profile(company_id: str, simulated_hours: float = 0.0):
     """Retrieves company reputation metrics and Verified Responsive badge status."""
-    audit = audit_company_reputation(company_id)
+    now_iso = (datetime.now(timezone.utc) + timedelta(hours=simulated_hours)).isoformat() if simulated_hours else datetime.now(timezone.utc).isoformat()
+    audit = audit_company_reputation(company_id, current_time_iso=now_iso)
     return audit
 
 
 @router.get("/jobs")
-def list_employer_jobs():
+def list_employer_jobs(simulated_hours: float = 0.0):
     """Lists all active job openings with applicant queue telemetry."""
     jobs = db.list_jobs()
-    now_iso = datetime.now(timezone.utc).isoformat()
+    now_iso = (datetime.now(timezone.utc) + timedelta(hours=simulated_hours)).isoformat() if simulated_hours else datetime.now(timezone.utc).isoformat()
     result = []
 
     for j in jobs:
@@ -64,14 +69,14 @@ def list_employer_jobs():
 
 
 @router.get("/jobs/{job_id}/applications")
-def get_job_applications(job_id: str):
+def get_job_applications(job_id: str, simulated_hours: float = 0.0):
     """Retrieves the high-priority Fast-Track queue alongside the unscreened cold queue."""
     job = db.get_job(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found.")
 
     apps = db.list_applications_for_job(job_id)
-    now_iso = datetime.now(timezone.utc).isoformat()
+    now_iso = (datetime.now(timezone.utc) + timedelta(hours=simulated_hours)).isoformat() if simulated_hours else datetime.now(timezone.utc).isoformat()
 
     # Process and sort fast-track applications by composite score descending
     fast_track_list = []
@@ -137,3 +142,104 @@ def candidate_disposition(payload: DispositionRequest):
         return res
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/simulate-ghost")
+def simulate_ghost(payload: GhostRequest):
+    """
+    DEMO TOOL: Simulates employer ghosting by backdating the SLA deadline
+    to 73 hours ago, forcing an SLA breach and penalizing company reputation.
+    This demonstrates the Anti-Ghosting enforcement system in real-time.
+    """
+    application = db.get_application(payload.application_id)
+    if not application:
+        raise HTTPException(status_code=404, detail="Application not found.")
+
+    if application.status not in ("pending",):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Can only ghost a pending application. Current status: {application.status}"
+        )
+
+    now = datetime.now(timezone.utc)
+
+    # Backdate: submitted 73h ago, deadline was 1h ago → breached by 1h
+    application.submitted_at = (now - timedelta(hours=73)).isoformat()
+    application.sla_deadline = (now - timedelta(hours=1)).isoformat()
+    application.status = "ghosted"
+    db.save_application(application)
+
+    # Penalize company reputation
+    job = db.get_job(application.job_id)
+    if job:
+        company = db.get_company(job.company_id)
+        if company:
+            company.popularity_score = max(50.0, round(company.popularity_score - 8.5, 1))
+            company.response_rate = max(50.0, round(company.response_rate - 10.0, 1))
+            company.is_verified_responsive = company.response_rate >= 85.0
+            db.companies[company.id] = company
+
+    return {
+        "success": True,
+        "application_id": application.id,
+        "new_status": "ghosted",
+        "sla_breached_by_hours": 1.0,
+        "penalty_applied": True,
+        "message": "Ghosting simulated. SLA breached by 1h. Company reputation penalized.",
+    }
+
+
+@router.get("/all-applications")
+def list_all_applications(simulated_hours: float = 0.0):
+    """Returns all applications across all jobs with SLA status — used by candidate status tracker."""
+    now_iso = (datetime.now(timezone.utc) + timedelta(hours=simulated_hours)).isoformat() if simulated_hours else datetime.now(timezone.utc).isoformat()
+    results = []
+    with db._lock:
+        apps = list(db.applications.values())
+    for a in apps:
+        sla = calculate_sla_status(a.submitted_at, a.sla_deadline, now_iso)
+        candidate = db.get_candidate(a.candidate_id)
+        job = db.get_job(a.job_id)
+        results.append({
+            "application": a,
+            "candidate": candidate,
+            "job": job,
+            "sla": sla,
+        })
+    # Sort: ghosted + breached first, then by SLA urgency
+    def sort_key(item):
+        st = item["application"].status
+        if st == "ghosted":
+            return 0
+        if item["sla"]["is_breached"]:
+            return 1
+        if item["sla"]["status"] == "sla_urgent":
+            return 2
+        return 3
+    results.sort(key=sort_key)
+    return results
+
+
+@router.get("/companies")
+def list_companies(simulated_hours: float = 0.0):
+    """Returns all companies with reputation metrics, dynamically factoring in simulated time."""
+    now_iso = (datetime.now(timezone.utc) + timedelta(hours=simulated_hours)).isoformat() if simulated_hours else datetime.now(timezone.utc).isoformat()
+    with db._lock:
+        companies = list(db.companies.values())
+    
+    # Audit each company against the current (or simulated) time
+    audited_companies = []
+    for c in companies:
+        audit = audit_company_reputation(c.id, current_time_iso=now_iso)
+        audited_companies.append({
+            "id": c.id,
+            "name": c.name,
+            "popularity_score": audit["popularity_score"],
+            "response_rate": audit["response_rate"],
+            "is_verified_responsive": audit["is_verified_responsive"],
+            "total_openings": c.total_openings,
+            "avg_response_hours": c.avg_response_hours,
+            "active_breaches": audit["active_breaches"],
+        })
+    return audited_companies
+
