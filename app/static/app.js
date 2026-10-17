@@ -147,6 +147,18 @@ function renderAuditResults(c) {
   document.getElementById("audit-bio").textContent = c.bio || "Active Software Engineer";
   document.getElementById("audit-avatar").src = c.avatar_url || "https://avatars.githubusercontent.com/u/8942111?v=4";
 
+  // Ownership & Contributor Badge
+  const ownBadge = document.getElementById("audit-ownership-badge");
+  if (ownBadge) {
+    if (c.is_bot || (c.commit_topology_status && c.commit_topology_status.includes("flagged"))) {
+      ownBadge.className = "mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-rose-50 text-rose-700 border border-rose-200";
+      ownBadge.innerHTML = `<i data-lucide="alert-triangle" class="w-3 h-3 text-rose-600"></i><span>Flagged Contributor (${c.author_match_rate || 15}% author match)</span>`;
+    } else {
+      ownBadge.className = "mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200";
+      ownBadge.innerHTML = `<i data-lucide="check-circle-2" class="w-3 h-3 text-emerald-600"></i><span>Verified Contributor (${c.author_match_rate || 100}% author match)</span>`;
+    }
+  }
+
   // Score
   const scoreEl = document.getElementById("audit-provenance-score");
   scoreEl.textContent = `${c.git_provenance_score}%`;
@@ -291,6 +303,7 @@ function openApplicationStatusModal(appId) {
 
   const isGhosted   = app.status === "ghosted";
   const isInterview = app.status === "interview_scheduled";
+  const isOffer     = app.status === "approved_offer";
   const isRejected  = app.status === "rejected_with_feedback";
   const isPending   = app.status === "pending";
 
@@ -307,6 +320,18 @@ function openApplicationStatusModal(appId) {
         </div>
         <p class="text-xs text-rose-700">
           The employer failed to review this application within the mandated 72-hour turnaround window. The company's public Popularity Score has been penalized and their Verified Responsive badge revoked.
+        </p>
+      </div>
+    `;
+  } else if (isOffer) {
+    statusHeader = `
+      <div class="rounded-lg bg-emerald-50 border border-emerald-200 p-3 space-y-1 text-emerald-950">
+        <div class="font-bold text-sm flex items-center gap-1.5">
+          <i data-lucide="check-check" class="w-4 h-4 text-emerald-600"></i>
+          <span>Fast-Track Candidate Approved — Formal Offer Extended!</span>
+        </div>
+        <p class="text-xs text-emerald-800">
+          Note: <strong>${app.disposition_note || 'Candidate cleared proof-of-work assessment and advanced directly to offer stage.'}</strong>
         </p>
       </div>
     `;
@@ -443,6 +468,7 @@ function renderCandidateStatusBoard(items) {
 
     const isGhosted   = app.status === "ghosted" || (app.status === "pending" && sla.is_breached);
     const isInterview = app.status === "interview_scheduled";
+    const isOffer     = app.status === "approved_offer";
     const isRejected  = app.status === "rejected_with_feedback";
 
     let borderClass = "border-slate-200 hover:border-blue-400 bg-white";
@@ -451,6 +477,9 @@ function renderCandidateStatusBoard(items) {
     if (isGhosted) {
       borderClass = "border-rose-300 bg-rose-50/40 hover:border-rose-400";
       statusPill = `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-200 flex items-center gap-1"><i data-lucide="alert-triangle" class="w-3 h-3 text-rose-600"></i><span>SLA BREACHED (${sla.overdue_hours || 1}h overdue)</span></span>`;
+    } else if (isOffer) {
+      borderClass = "border-emerald-300 bg-emerald-50/40 hover:border-emerald-400";
+      statusPill = `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200 flex items-center gap-1"><i data-lucide="check-check" class="w-3 h-3 text-emerald-600"></i><span>Offer Extended!</span></span>`;
     } else if (isInterview) {
       borderClass = "border-indigo-200 bg-indigo-50/30";
       statusPill = `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-100 text-indigo-800 border border-indigo-200">Interview Scheduled</span>`;
@@ -572,6 +601,7 @@ async function loadCandidateJobs() {
       const st = existing.application.status;
       let statusText = "Active Fast-Track #1";
       if (st === "interview_scheduled") statusText = "Interview Scheduled";
+      else if (st === "approved_offer") statusText = "Offer Extended!";
       else if (st === "ghosted") statusText = "SLA Breached / Ghosted";
 
       actionButton = `
@@ -968,6 +998,80 @@ function onJobChange() {
   loadEmployerCockpit();
 }
 
+function openCreateJobModal() {
+  const modal = document.getElementById("modal-create-job");
+  if (!modal) return;
+  const compSelect = document.getElementById("input-newjob-company");
+  if (compSelect && currentJob) {
+    compSelect.value = currentJob.company_id || "comp-acme";
+  }
+  document.getElementById("input-newjob-title").value = "";
+  document.getElementById("input-newjob-tags").value = "Rust, Go, Distributed Systems, WebSockets";
+  document.getElementById("input-newjob-desc").value = "";
+  modal.classList.remove("hidden");
+  lucide.createIcons();
+}
+
+async function createEmployerJob() {
+  const companyId = document.getElementById("input-newjob-company").value;
+  const title = document.getElementById("input-newjob-title").value.trim();
+  const rawTags = document.getElementById("input-newjob-tags").value.trim();
+  const expLevel = document.getElementById("input-newjob-exp").value;
+  const salary = document.getElementById("input-newjob-salary").value.trim();
+  const desc = document.getElementById("input-newjob-desc").value.trim();
+
+  if (!title) {
+    showToast("Please enter a job title.", "warn");
+    return;
+  }
+
+  const tags = rawTags.split(",").map(t => t.trim()).filter(Boolean);
+
+  const btn = document.getElementById("btn-submit-newjob");
+  btn.disabled = true;
+  btn.innerHTML = `<i data-lucide="loader-2" class="w-3.5 h-3.5 animate-spin"></i><span>Publishing Opening…</span>`;
+  lucide.createIcons();
+
+  try {
+    const res = await fetch("/api/employer/jobs", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        company_id: companyId,
+        title: title,
+        stack_tags: tags.length ? tags : ["Python", "FastAPI"],
+        experience_level: expLevel,
+        salary_range: salary,
+        description: desc || `Production engineering role focused on ${tags.join(", ")} under strict 72h SLA.`,
+      }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.detail || "Failed to publish job");
+    }
+
+    const newJob = await res.json();
+    closeModal("modal-create-job");
+    showToast(`Published: "${newJob.title}" with 72h SLA guarantee!`, "success");
+
+    // Refresh bootstrap, select the new job, reload candidate jobs & employer cockpit
+    await loadEmployerBootstrap();
+    selectedJobId = newJob.id;
+    const sel = document.getElementById("emp-job-select");
+    if (sel) sel.value = newJob.id;
+
+    await loadCandidateJobs();
+    await loadEmployerCockpit();
+  } catch (err) {
+    showToast("Error creating job: " + err.message, "error");
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = `<i data-lucide="check" class="w-3.5 h-3.5"></i><span>Publish Role Opening</span>`;
+    lucide.createIcons();
+  }
+}
+
 async function loadEmployerCockpit() {
   if (!selectedJobId && allJobs.length) selectedJobId = allJobs[0].id;
 
@@ -1033,23 +1137,30 @@ function renderEmployerQueues(data) {
     let actionBtns = "";
     if (isPending) {
       actionBtns = `
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-1.5 flex-wrap">
+          <button onclick="event.stopPropagation(); openDispositionModal('${app.id}', 'approve_offer')"
+            class="px-2.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs flex items-center gap-1 transition shadow-sm">
+            <i data-lucide="check-check" class="w-3.5 h-3.5"></i>
+            <span>Approve & Offer</span>
+          </button>
           <button onclick="event.stopPropagation(); openDispositionModal('${app.id}', 'schedule_interview')"
-            class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs flex items-center gap-1.5 transition shadow-sm">
+            class="px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs flex items-center gap-1 transition shadow-sm">
             <i data-lucide="calendar" class="w-3.5 h-3.5"></i>
             <span>Schedule</span>
           </button>
           <button onclick="event.stopPropagation(); openDispositionModal('${app.id}', 'reject_with_feedback')"
-            class="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium text-xs border border-slate-200 transition">
+            class="px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium text-xs border border-slate-200 transition">
             Pass w/ Feedback
           </button>
           <button onclick="event.stopPropagation(); openGhostModal('${app.id}')"
             title="Simulate 72h inactivity"
-            class="px-2.5 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold border border-rose-200 transition">
+            class="px-2 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold border border-rose-200 transition">
             Simulate Ghost
           </button>
         </div>
       `;
+    } else if (app.status === "approved_offer") {
+      actionBtns = `<span class="px-2.5 py-1 rounded bg-emerald-50 text-emerald-800 border border-emerald-200 font-bold text-xs flex items-center gap-1"><i data-lucide="check-check" class="w-3.5 h-3.5 text-emerald-600"></i><span>Offer Extended</span></span>`;
     } else if (isInterview) {
       actionBtns = `<span class="px-2.5 py-1 rounded bg-indigo-50 text-indigo-700 border border-indigo-200 font-semibold text-xs">Interview: ${app.interview_time || 'Scheduled'}</span>`;
     } else if (isRejected) {
@@ -1145,6 +1256,16 @@ function openDispositionModal(appId, action) {
           class="w-full p-2 rounded-lg bg-slate-50 border border-slate-300 text-slate-900 focus:bg-white focus:border-blue-600">
       </div>
     `;
+  } else if (action === "approve_offer") {
+    title.textContent = "Approve Candidate & Extend Offer";
+    content.innerHTML = `
+      <p class="text-slate-600">Approving this candidate moves them directly to the final offer stage. This satisfies the 72h SLA and preserves your Verified Responsive Employer badge.</p>
+      <div>
+        <label class="block font-semibold text-slate-700 mb-1">Offer & Next Steps Note:</label>
+        <input id="input-approve-note" type="text" value="Fast-Track Approved! Moving directly to formal compensation & offer letter."
+          class="w-full p-2 rounded-lg bg-slate-50 border border-slate-300 text-slate-900 focus:bg-white focus:border-blue-600">
+      </div>
+    `;
   } else {
     title.textContent = "Pass with Constructive Feedback";
     content.innerHTML = `
@@ -1168,6 +1289,8 @@ async function executeDisposition() {
   if (action === "schedule_interview") {
     interviewTime = document.getElementById("input-interview-slot")?.value;
     note = document.getElementById("input-interview-note")?.value;
+  } else if (action === "approve_offer") {
+    note = document.getElementById("input-approve-note")?.value;
   } else {
     note = document.getElementById("input-rejection-note")?.value;
   }

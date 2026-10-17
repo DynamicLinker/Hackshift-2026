@@ -85,12 +85,16 @@ def process_disposition(
         application.disposition_at = now_iso
         application.disposition_note = note or "Invited for 48-hour direct engineering round."
         application.interview_time = interview_time or (now + timedelta(days=2)).strftime("%A at 3:00 PM IST")
+    elif action == "approve_offer":
+        application.status = "approved_offer"
+        application.disposition_at = now_iso
+        application.disposition_note = note or "Fast-track approved! Candidate advanced to final offer stage."
     elif action == "reject_with_feedback":
         application.status = "rejected_with_feedback"
         application.disposition_at = now_iso
         application.disposition_note = note or "Constructive feedback: Strengthen concurrency control."
     else:
-        raise ValueError(f"Unknown action: {action}. Use 'schedule_interview' or 'reject_with_feedback'.")
+        raise ValueError(f"Unknown action: {action}. Use 'schedule_interview', 'approve_offer', or 'reject_with_feedback'.")
 
     datastore.save_application(application)
 
@@ -136,7 +140,7 @@ def audit_company_reputation(company_id: str, db_instance = None, current_time_i
         apps = datastore.list_applications_for_job(job.id)
         total_apps += len(apps)
         for a in apps:
-            if a.status in ["interview_scheduled", "rejected_with_feedback"]:
+            if a.status in ["interview_scheduled", "rejected_with_feedback", "approved_offer"]:
                 resolved_apps += 1
             else:
                 sla = calculate_sla_status(a.submitted_at, a.sla_deadline, now_iso)

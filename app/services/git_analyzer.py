@@ -405,6 +405,8 @@ async def analyze_github_user(
             credibility_score=round(audit.provenance_rating * 0.98, 1),
             fast_track_qualified=is_verified,
             cloned_locally=True,
+            ownership_status="verified_contributor" if is_verified else "unverified_owner",
+            author_match_rate=100.0 if is_verified else 25.0,
             gemini_analysis=gemini_text,
         )
 
@@ -428,6 +430,8 @@ async def analyze_github_user(
             audited_repos=audited,
             credibility_score=p["credibility_score"],
             fast_track_qualified=p["fast_track_qualified"],
+            ownership_status="unverified_bulk_dump" if p["is_bot"] else "verified_contributor",
+            author_match_rate=15.0 if p["is_bot"] else 100.0,
             gemini_analysis=gemini_text,
         )
 
