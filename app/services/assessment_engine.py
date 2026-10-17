@@ -14,7 +14,7 @@ from app.models import AssessmentChallenge, AssessmentSubmission, CandidateProfi
 BUG_CHALLENGES = [
     {
         "id": "fastapi-async-race",
-        "stack": ["FastAPI", "Redis", "Concurrency"],
+        "stack": ["FastAPI", "Redis", "Concurrency", "RaceCondition", "Lock", "RateLimiter", "TokenBucket"],
         "title": "Fix Concurrency Race Condition in Shared Token Bucket",
         "filename": "token_bucket.py",
         "instructions": (
@@ -42,7 +42,7 @@ BUG_CHALLENGES = [
     },
     {
         "id": "db-connection-leak",
-        "stack": ["SQLAlchemy", "PostgreSQL", "Database", "AsyncIO"],
+        "stack": ["SQLAlchemy", "PostgreSQL", "Database", "MLOps", "SQL", "Pool", "Storage"],
         "title": "Resolve Database Connection Leak in Async Repository",
         "filename": "db_repository.py",
         "instructions": (
@@ -63,7 +63,7 @@ BUG_CHALLENGES = [
     },
     {
         "id": "network-retry-storm",
-        "stack": ["Distributed Systems", "WebSockets", "AWS", "CI/CD"],
+        "stack": ["Distributed Systems", "WebSockets", "AWS", "CI/CD", "DevOps", "Microservices", "Docker", "SRE", "Go", "Rust", "Node", "TypeScript", "Resilience"],
         "title": "Prevent Thundering Herd Retry Storm with Jittered Exponential Backoff",
         "filename": "resilience_client.py",
         "instructions": (
@@ -93,15 +93,18 @@ def generate_challenge(candidate: CandidateProfile, job: Job) -> AssessmentChall
     now_iso = datetime.now(timezone.utc).isoformat()
     challenge_id = f"chal_{uuid.uuid4().hex[:10]}"
 
-    # 1. Match challenge template to job description and stack tags
+    # 1. Match challenge template to job description and stack tags by highest affinity
     challenge_template = BUG_CHALLENGES[0]
+    best_score = -1
+
     for ch in BUG_CHALLENGES:
-        if any(tag.lower() in [s.lower() for s in job.stack_tags] for tag in ch["stack"]):
-            challenge_template = ch
-            break
+        matches = [tag for tag in ch["stack"] if tag.lower() in [s.lower() for s in job.stack_tags]]
+        score = len(matches)
         if ch["id"] in job.id.lower():
+            score += 10
+        if score > best_score:
             challenge_template = ch
-            break
+            best_score = score
 
     # 2. Generate Self-Repo Comprehension Prompt tailored specifically to job & company
     top_repo = candidate.audited_repos[0] if candidate.audited_repos else None

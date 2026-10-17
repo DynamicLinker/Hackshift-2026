@@ -46,6 +46,8 @@ class CandidateProfile(BaseModel):
     credibility_score: float = 0.0
     fast_track_qualified: bool = False
     cloned_locally: bool = False
+    ownership_status: str = "verified_contributor"
+    author_match_rate: float = 100.0
     gemini_analysis: Optional[str] = None
 
 class AssessmentChallenge(BaseModel):

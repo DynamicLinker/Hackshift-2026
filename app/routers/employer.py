@@ -9,6 +9,7 @@ from typing import List, Dict, Any, Optional
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
+import uuid
 from app.db.datastore import db
 from app.models import Job, Application, Company
 from app.services.sla_tracker import (
@@ -20,15 +21,58 @@ from app.services.sla_tracker import (
 router = APIRouter(prefix="/api/employer", tags=["Employer"])
 
 
+class CreateJobRequest(BaseModel):
+    company_id: str
+    title: str
+    stack_tags: List[str]
+    description: str
+    experience_level: Optional[str] = "Junior / Mid"
+    salary_range: Optional[str] = "INR 14 - 20 LPA"
+
+
 class DispositionRequest(BaseModel):
     application_id: str
-    action: str  # "schedule_interview" or "reject_with_feedback" or "simulate_ghost"
+    action: str  # "schedule_interview", "approve_offer", "reject_with_feedback"
     note: Optional[str] = None
     interview_time: Optional[str] = None
 
 
 class GhostRequest(BaseModel):
     application_id: str
+
+
+@router.post("/jobs", response_model=Job)
+def create_employer_job(payload: CreateJobRequest):
+    """Creates and publishes a new job opening with automated 72-hour anti-ghost SLA."""
+    company = db.get_company(payload.company_id)
+    if not company:
+        raise HTTPException(status_code=404, detail=f"Company '{payload.company_id}' not found.")
+
+    title = payload.title.strip()
+    if not title:
+        raise HTTPException(status_code=400, detail="Job title is required.")
+
+    clean_tags = [t.strip() for t in payload.stack_tags if t.strip()]
+    if not clean_tags:
+        clean_tags = ["Python", "FastAPI", "Distributed Systems"]
+
+    job_id = f"job-{uuid.uuid4().hex[:8]}"
+    new_job = Job(
+        id=job_id,
+        company_id=company.id,
+        company_name=company.name,
+        title=title,
+        stack_tags=clean_tags,
+        description=payload.description.strip() or f"Build production systems using {', '.join(clean_tags)} with strict SLA guarantees.",
+        experience_level=payload.experience_level or "Junior / Mid",
+        salary_range=payload.salary_range or "INR 14 - 20 LPA",
+        created_at=datetime.now(timezone.utc).isoformat(),
+        active=True,
+    )
+    db.add_job(new_job)
+    company.total_openings += 1
+    db.companies[company.id] = company
+    return new_job
 
 
 @router.get("/company/{company_id}")
