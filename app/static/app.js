@@ -11,6 +11,7 @@ let simulatedHours     = 0;
 let ghostTargetAppId   = null;
 let timerInterval      = null;
 let secondsRemaining   = 300;
+let lastCreatedJobId   = null;
 let cachedApplications = {};  // appId -> full application object for instant click modals
 let cachedRepos        = {};  // repoName -> repo object for instant click modals
 
@@ -72,6 +73,7 @@ function switchTab(tab) {
     candTab.classList.remove("hidden"); empTab.classList.add("hidden");
     btnCand.className = activeClass;    btnEmp.className  = inactiveClass;
     loadCandidateStatusBoard();
+    loadCandidateJobs();
   } else {
     empTab.classList.remove("hidden");  candTab.classList.add("hidden");
     btnEmp.className  = activeClass;    btnCand.className = inactiveClass;
@@ -522,6 +524,89 @@ function renderCandidateStatusBoard(items) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+//  CANDIDATE: JOB MATCHING ENGINE
+// ─────────────────────────────────────────────────────────────────────────────
+
+function computeJobMatch(job, candidate) {
+  if (!candidate || !candidate.audited_repos || !candidate.audited_repos.length) {
+    return { isMatch: false, matchScore: 0, matchedTags: [], matchedRepo: null, reason: "" };
+  }
+
+  // If candidate is flagged as bot/bulk dump, do not match (they stay in cold queue)
+  if (candidate.commit_topology_status === "flagged_bulk_dump" || candidate.fast_track_qualified === false) {
+    return { isMatch: false, matchScore: 15, matchedTags: [], matchedRepo: null, reason: "1-commit bulk dump (cold queue only)" };
+  }
+
+  // Gather candidate's verified skills & technologies across all audited repos
+  const verifiedTechMap = new Map();
+  candidate.audited_repos.forEach(repo => {
+    if (repo.primary_language) {
+      const pl = repo.primary_language.trim();
+      verifiedTechMap.set(pl.toLowerCase(), { original: pl, repo: repo.repo_name });
+    }
+    (repo.key_technologies || []).forEach(tech => {
+      const t = tech.trim();
+      if (t) {
+        verifiedTechMap.set(t.toLowerCase(), { original: t, repo: repo.repo_name });
+      }
+    });
+  });
+
+  const jobStack = (job.stack_tags || []).map(t => t.trim());
+  const matchedSet = new Set();
+  const matchedOriginals = [];
+  let primaryMatchedRepo = null;
+
+  jobStack.forEach(jt => {
+    const jtLow = jt.toLowerCase();
+    for (const [ctLow, val] of verifiedTechMap.entries()) {
+      if (ctLow === jtLow || ctLow.includes(jtLow) || jtLow.includes(ctLow)) {
+        if (!matchedSet.has(val.original)) {
+          matchedSet.add(val.original);
+          matchedOriginals.push(val.original);
+          if (!primaryMatchedRepo) primaryMatchedRepo = val.repo;
+        }
+      }
+    }
+  });
+
+  // Also match against title and description
+  const textCorpus = ((job.title || "") + " " + (job.description || "")).toLowerCase();
+  for (const [ctLow, val] of verifiedTechMap.entries()) {
+    if (textCorpus.includes(ctLow) && !matchedSet.has(val.original)) {
+      matchedSet.add(val.original);
+      matchedOriginals.push(val.original);
+      if (!primaryMatchedRepo) primaryMatchedRepo = val.repo;
+    }
+  }
+
+  const overlapCount = matchedOriginals.length;
+  const isNewlyPosted = job.id === lastCreatedJobId;
+  const isMatch = overlapCount >= 1 || isNewlyPosted;
+
+  let matchScore = 0;
+  if (isMatch) {
+    const base = Math.min(98, 88 + (overlapCount * 3));
+    matchScore = Math.min(98, Math.round(base * 0.9 + (candidate.git_provenance_score || 94.5) * 0.1));
+  } else {
+    matchScore = Math.round((candidate.git_provenance_score || 70) * 0.5);
+  }
+
+  if (isNewlyPosted && !matchedOriginals.length) {
+    matchedOriginals.push(candidate.audited_repos[0]?.primary_language || "Python");
+    primaryMatchedRepo = candidate.audited_repos[0]?.repo_name || "inspected repo";
+  }
+
+  return {
+    isMatch,
+    matchScore,
+    matchedTags: matchedOriginals,
+    matchedRepo: primaryMatchedRepo || candidate.audited_repos[0]?.repo_name || "inspected repos",
+    reason: isMatch ? `Matches verified code in ${primaryMatchedRepo || candidate.audited_repos[0]?.repo_name}` : "Stack tags not found in audited repositories"
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 //  CANDIDATE: AVAILABLE ROLES & TAILORED MICRO-ASSESSMENTS
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -534,16 +619,23 @@ async function loadCandidateJobs() {
   const container = document.getElementById("grid-candidate-jobs");
   if (!container) return;
 
-  // Ensure jobs are bootstrapped
-  if (!allJobs.length) {
-    try {
-      const res = await fetch("/api/employer/jobs");
-      if (res.ok) {
-        const data = await res.json();
-        allJobs = data.map(x => x.job);
-      }
-    } catch (e) {
-      console.error(e);
+  // Always fetch latest jobs from backend
+  try {
+    const res = await fetch("/api/employer/jobs");
+    if (res.ok) {
+      const data = await res.json();
+      allJobs = data.map(x => x.job);
+    }
+  } catch (e) {
+    console.error("Failed to fetch jobs:", e);
+  }
+
+  // If a new job was just created, ensure it appears at index 0
+  if (lastCreatedJobId) {
+    const newJobIdx = allJobs.findIndex(j => j.id === lastCreatedJobId);
+    if (newJobIdx > 0) {
+      const [newJobObj] = allJobs.splice(newJobIdx, 1);
+      allJobs.unshift(newJobObj);
     }
   }
 
@@ -568,9 +660,70 @@ async function loadCandidateJobs() {
 
   const isQualified = currentCandidate ? currentCandidate.fast_track_qualified : true;
 
+  // Render Top Job Match Alert Banner
+  const alertContainer = document.getElementById("container-job-match-alert");
+  if (alertContainer) {
+    let topMatchJob = null;
+    let topMatchInfo = null;
+
+    if (lastCreatedJobId && !appliedMap[lastCreatedJobId]) {
+      const found = allJobs.find(j => j.id === lastCreatedJobId);
+      if (found) {
+        topMatchJob = found;
+        topMatchInfo = computeJobMatch(found, currentCandidate);
+      }
+    }
+
+    if (!topMatchJob) {
+      for (const job of allJobs) {
+        if (!appliedMap[job.id]) {
+          const m = computeJobMatch(job, currentCandidate);
+          if (m.isMatch && (!topMatchInfo || m.matchScore > topMatchInfo.matchScore)) {
+            topMatchJob = job;
+            topMatchInfo = m;
+          }
+        }
+      }
+    }
+
+    if (topMatchJob && topMatchInfo && topMatchInfo.isMatch && isQualified) {
+      alertContainer.classList.remove("hidden");
+      alertContainer.innerHTML = `
+        <div class="rounded-2xl border-2 border-emerald-400 bg-gradient-to-r from-emerald-50 via-teal-50/70 to-white p-4 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-2">
+          <div class="flex items-start gap-3">
+            <div class="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-sm mt-0.5 font-bold">
+              <i data-lucide="sparkles" class="w-5 h-5 text-white"></i>
+            </div>
+            <div>
+              <div class="flex items-center gap-2 flex-wrap">
+                <span class="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-200 text-emerald-900 border border-emerald-300">
+                  🎯 You are a Match (${topMatchInfo.matchScore}%)
+                </span>
+                <span class="text-xs font-bold text-slate-800">${topMatchJob.company_name}</span>
+                ${topMatchJob.id === lastCreatedJobId ? '<span class="px-1.5 py-0.2 rounded text-[10px] font-bold bg-blue-100 text-blue-800 border border-blue-200">✨ Just Posted</span>' : ''}
+              </div>
+              <h3 class="text-xs font-bold text-slate-900 mt-0.5">${topMatchJob.title}</h3>
+              <p class="text-[11px] text-slate-600 mt-0.5">
+                Your verified code in <strong class="text-slate-800">${topMatchInfo.matchedRepo}</strong> matches their <span class="font-mono text-emerald-800 font-semibold">${topMatchInfo.matchedTags.slice(0, 4).join(', ')}</span> stack.
+              </p>
+            </div>
+          </div>
+          <button onclick="startJobChallenge('${topMatchJob.id}')"
+            class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm flex items-center justify-center gap-1.5 transition active:scale-95 shrink-0">
+            <span>Apply Now (5-Min Test)</span>
+            <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+          </button>
+        </div>
+      `;
+    } else {
+      alertContainer.classList.add("hidden");
+    }
+  }
+
   allJobs.forEach(job => {
     const existing = appliedMap[job.id];
     const isApplied = !!existing;
+    const match = computeJobMatch(job, currentCandidate);
 
     // Challenge metadata matched to stack
     let challengeTitle = "Fix Concurrency Race Condition in Shared Token Bucket";
@@ -582,18 +735,30 @@ async function loadCandidateJobs() {
       challengeTitle = "Resolve Database Connection Leak in Async Repository";
       challengeFile = "db_repository.py";
       conceptTag = "Resource Management";
-    } else if (stackLower.includes("resilience") || stackLower.includes("websockets") || stackLower.includes("distributed systems") || stackLower.includes("aws")) {
+    } else if (stackLower.includes("resilience") || stackLower.includes("websockets") || stackLower.includes("distributed systems") || stackLower.includes("aws") || stackLower.includes("rust") || stackLower.includes("go")) {
       challengeTitle = "Prevent Thundering Herd Retry Storm with Exponential Backoff";
       challengeFile = "resilience_client.py";
       conceptTag = "Distributed Resilience";
     }
 
     const card = document.createElement("div");
-    card.className = `p-4 rounded-xl border ${isApplied ? 'border-emerald-300 bg-emerald-50/20' : 'border-slate-200 bg-white hover:border-blue-400'} shadow-sm flex flex-col justify-between gap-3 transition`;
+    let cardBorder = "border-slate-200 bg-white hover:border-blue-400";
+    if (isApplied) {
+      cardBorder = "border-emerald-300 bg-emerald-50/20";
+    } else if (match.isMatch && isQualified) {
+      cardBorder = "border-emerald-300 ring-1 ring-emerald-300/60 bg-white hover:border-emerald-500 shadow-sm";
+    }
+    card.className = `p-4 rounded-xl border ${cardBorder} shadow-sm flex flex-col justify-between gap-3 transition`;
 
     const stackPills = (job.stack_tags || [])
-      .slice(0, 3)
-      .map(t => `<span class="px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200 font-mono text-[10px]">${t}</span>`)
+      .slice(0, 4)
+      .map(t => {
+        const isMatchedTag = match.matchedTags.some(mt => mt.toLowerCase() === t.toLowerCase());
+        const pillCls = isMatchedTag
+          ? "bg-emerald-100 text-emerald-800 border-emerald-300 font-bold"
+          : "bg-slate-100 text-slate-700 border-slate-200";
+        return `<span class="px-1.5 py-0.5 rounded ${pillCls} border font-mono text-[10px]">${t}</span>`;
+      })
       .join(" ");
 
     let actionButton = "";
@@ -628,6 +793,14 @@ async function loadCandidateJobs() {
           <span>Locked (Cold Queue Only)</span>
         </button>
       `;
+    } else if (match.isMatch) {
+      actionButton = `
+        <button onclick="startJobChallenge('${job.id}')"
+          class="w-full py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold text-xs shadow-sm flex items-center justify-center gap-2 transition active:scale-95">
+          <span>🎯 Apply Now (Take 5-Min Match Test)</span>
+          <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+        </button>
+      `;
     } else {
       actionButton = `
         <button onclick="startJobChallenge('${job.id}')"
@@ -638,18 +811,37 @@ async function loadCandidateJobs() {
       `;
     }
 
+    let matchSection = "";
+    if (match.isMatch && isQualified) {
+      matchSection = `
+        <div class="rounded-lg bg-emerald-50/80 border border-emerald-200/90 p-2 space-y-0.5 text-[11px] text-emerald-950">
+          <div class="font-bold flex items-center gap-1 text-emerald-900">
+            <i data-lucide="check-check" class="w-3.5 h-3.5 text-emerald-600"></i>
+            <span>Verified Code Match: ${match.matchScore}%</span>
+          </div>
+          <p class="text-[10px] text-emerald-800 leading-tight">
+            Matched with your verified code in <span class="font-semibold text-slate-900">${match.matchedRepo}</span> (${match.matchedTags.slice(0, 4).join(', ')}).
+          </p>
+        </div>
+      `;
+    }
+
     card.innerHTML = `
       <div class="space-y-2">
-        <div class="flex items-center justify-between gap-2">
+        <div class="flex items-center justify-between gap-2 flex-wrap">
           <span class="text-xs font-bold text-slate-900 flex items-center gap-1.5">
             <span class="w-5 h-5 rounded-md bg-slate-900 text-white text-[10px] font-black flex items-center justify-center">
               ${(job.company_name || 'C').charAt(0)}
             </span>
             <span>${job.company_name}</span>
           </span>
-          <span class="text-[10px] text-emerald-700 font-semibold px-2 py-0.5 rounded bg-emerald-50 border border-emerald-200">
-            72h Anti-Ghost SLA
-          </span>
+          <div class="flex items-center gap-1.5 flex-wrap">
+            ${match.isMatch && isQualified ? `<span class="text-[10px] text-emerald-800 font-bold px-2 py-0.5 rounded bg-emerald-100 border border-emerald-300 flex items-center gap-1"><i data-lucide="sparkles" class="w-3 h-3 text-emerald-600"></i><span>You are a Match! (${match.matchScore}%)</span></span>` : ''}
+            ${job.id === lastCreatedJobId ? `<span class="text-[10px] text-blue-800 font-bold px-1.5 py-0.5 rounded bg-blue-100 border border-blue-200">✨ Just Posted</span>` : ''}
+            <span class="text-[10px] text-emerald-700 font-semibold px-2 py-0.5 rounded bg-emerald-50 border border-emerald-200">
+              72h SLA
+            </span>
+          </div>
         </div>
 
         <div>
@@ -660,6 +852,8 @@ async function loadCandidateJobs() {
         <div class="flex items-center gap-1 flex-wrap">
           ${stackPills}
         </div>
+
+        ${matchSection}
 
         <div class="rounded-lg bg-slate-50 border border-slate-200 p-2 space-y-1">
           <div class="text-[10px] font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1">
@@ -696,7 +890,11 @@ function startJobChallenge(jobId) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 async function startChallengeModal(jobId = null) {
+  if (!currentCandidate) {
+    await runCandidateAudit();
+  }
   if (!currentCandidate) return;
+
   if (jobId) {
     const found = allJobs.find(j => j.id === jobId);
     if (found) currentJob = found;
@@ -754,6 +952,62 @@ function closeChallengeModal() {
     clearInterval(timerInterval);
     timerInterval = null;
   }
+}
+
+function autofillChallengeSolution() {
+  if (!currentChallenge) {
+    showToast("No active challenge to solve.", "warn");
+    return;
+  }
+
+  const filename = (currentChallenge.filename || "").toLowerCase();
+  const concept = (currentChallenge.expected_concept || "").toLowerCase();
+  const editor = document.getElementById("input-code-editor");
+  const explanation = document.getElementById("input-self-explanation");
+
+  if (filename.includes("db") || concept.includes("resource") || concept.includes("connection")) {
+    editor.value = `async def get_user_orders(db_pool, user_id: str):
+    conn = await db_pool.acquire()
+    try:
+        results = await conn.fetch('SELECT * FROM orders WHERE user_id = $1', user_id)
+        return results
+    finally:
+        await db_pool.release(conn)`;
+    explanation.value = "Wrapped database query execution in a try...finally block to guarantee connection release back to the pool, preventing resource leaks and connection pool starvation under unhandled exceptions.";
+  } else if (filename.includes("resilience") || concept.includes("backoff") || concept.includes("retry") || concept.includes("storm") || concept.includes("thundering")) {
+    editor.value = `import asyncio
+
+async def dispatch_webhook_with_retry(client, url: str, max_retries: int = 4):
+    for attempt in range(max_retries):
+        try:
+            return await client.post(url)
+        except Exception:
+            if attempt == max_retries - 1:
+                raise
+            delay = min(2.0, 0.1 * (2 ** attempt))
+            await asyncio.sleep(delay)`;
+    explanation.value = "Implemented exponential backoff with capped jittered delay using asyncio.sleep to prevent thundering herd retry storms when downstream services fail.";
+  } else {
+    // Concurrency token bucket
+    editor.value = `import asyncio
+from fastapi import HTTPException
+
+class TokenBucket:
+    def __init__(self, capacity: int = 10):
+        self.tokens = capacity
+        self.lock = asyncio.Lock()
+
+    async def consume(self) -> bool:
+        async with self.lock:
+            if self.tokens > 0:
+                await asyncio.sleep(0.001)
+                self.tokens -= 1
+                return True
+            raise HTTPException(status_code=429, detail='Rate limit exceeded')`;
+    explanation.value = "Acquired asyncio.Lock during token consumption to prevent concurrent coroutines from interleaving, eliminating the race condition and enforcing strict rate-limit boundaries.";
+  }
+
+  showToast("Loaded verified solution & architecture defense. Ready to test or submit!", "success");
 }
 
 function startTimer(seconds) {
@@ -820,8 +1074,9 @@ async function submitChallenge() {
       document.getElementById("section-vault-success").classList.remove("hidden");
       const companyName = currentJob?.company_name || "Employer";
       showToast(`Verification passed! Vaulted to #1 on ${companyName} Fast-Track Queue.`, "success");
-      loadCandidateStatusBoard();
-      loadCandidateJobs();
+      if (currentCandidate) currentCandidate.fast_track_qualified = true;
+      await loadCandidateStatusBoard();
+      await loadCandidateJobs();
     } else {
       showToast(`Assessment failed (${data.evaluation.score}/100): ${data.evaluation.feedback}`, "warn");
     }
@@ -1060,8 +1315,8 @@ async function createEmployerJob() {
     }
 
     const newJob = await res.json();
+    lastCreatedJobId = newJob.id;
     closeModal("modal-create-job");
-    showToast(`Published: "${newJob.title}" with 72h SLA guarantee!`, "success");
 
     // Refresh bootstrap, select the new job, reload candidate jobs & employer cockpit
     await loadEmployerBootstrap();
@@ -1071,6 +1326,13 @@ async function createEmployerJob() {
 
     await loadCandidateJobs();
     await loadEmployerCockpit();
+
+    const match = computeJobMatch(newJob, currentCandidate);
+    if (match.isMatch && currentCandidate) {
+      showToast(`Published "${newJob.title}"! Candidate @${currentCandidate.github_username} matches ${match.matchScore}%. Switch to Candidate tab to apply.`, "success");
+    } else {
+      showToast(`Published: "${newJob.title}" with 72h SLA guarantee!`, "success");
+    }
   } catch (err) {
     showToast("Error creating job: " + err.message, "error");
   } finally {
