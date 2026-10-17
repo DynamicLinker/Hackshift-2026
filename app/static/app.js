@@ -14,8 +14,8 @@ let secondsRemaining   = 300;
 let cachedApplications = {};  // appId -> full application object for instant click modals
 let cachedRepos        = {};  // repoName -> repo object for instant click modals
 
-document.addEventListener("DOMContentLoaded", () => {
-  loadCandidateStatusBoard();
+document.addEventListener("DOMContentLoaded", async () => {
+  await runCandidateAudit();
   loadEmployerBootstrap();
 });
 
@@ -173,6 +173,15 @@ function renderAuditResults(c) {
     qualBadge.innerHTML = `<i data-lucide="shield-x" class="w-3 h-3"></i><span>Cold Queue Only</span>`;
     startBtn.classList.add("hidden");
   }
+
+  // Update Status Board Title to Candidate's Name
+  const headingName = document.getElementById("status-board-candidate-name");
+  if (headingName) {
+    headingName.textContent = c.full_name ? `${c.full_name} (@${c.github_username})` : `@${c.github_username}`;
+  }
+
+  // Reload the status board strictly for this audited candidate
+  loadCandidateStatusBoard();
 
   // Gemini Analysis Banner
   const geminiBanner = document.getElementById("gemini-audit-banner");
@@ -370,6 +379,14 @@ async function loadCandidateStatusBoard() {
   if (!container) return;
 
   const username = currentCandidate?.github_username || document.getElementById("input-github-user")?.value.trim() || "iiitd-dev";
+
+  // Keep candidate name in header synchronized
+  const headingName = document.getElementById("status-board-candidate-name");
+  if (headingName) {
+    const disp = currentCandidate?.full_name ? `${currentCandidate.full_name} (@${username})` : `@${username}`;
+    headingName.textContent = disp;
+  }
+
   try {
     const res = await fetch(`/api/employer/all-applications?simulated_hours=${simulatedHours}&candidate_username=${encodeURIComponent(username)}`);
     if (!res.ok) throw new Error("Could not fetch board");
@@ -387,7 +404,31 @@ function renderCandidateStatusBoard(items) {
   cachedApplications = {};
 
   if (!items.length) {
-    container.innerHTML = `<p class="text-xs text-slate-500 text-center py-4">No active applications submitted yet.</p>`;
+    if (currentCandidate && !currentCandidate.fast_track_qualified) {
+      container.innerHTML = `
+        <div class="rounded-xl border border-rose-200 bg-rose-50/70 p-5 text-center space-y-2">
+          <div class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-rose-100 text-rose-700 mx-auto">
+            <i data-lucide="alert-triangle" class="w-4 h-4 text-rose-600"></i>
+          </div>
+          <h3 class="text-xs font-bold text-rose-900">No Fast-Track Applications</h3>
+          <p class="text-xs text-rose-700 max-w-lg mx-auto">
+            Candidate <strong>@${currentCandidate.github_username}</strong> was routed to the unscreened cold queue due to a 1-commit bulk dump (provenance rating: ${currentCandidate.git_provenance_score}%). Fast-track queue privileges with 72h anti-ghost SLA are reserved for verified human repositories.
+          </p>
+        </div>
+      `;
+    } else {
+      const candUser = currentCandidate?.github_username || document.getElementById("input-github-user")?.value.trim() || 'this candidate';
+      container.innerHTML = `
+        <div class="rounded-xl border border-slate-200 bg-white p-6 text-center space-y-2">
+          <div class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-slate-100 text-slate-600 mx-auto">
+            <i data-lucide="inbox" class="w-4 h-4"></i>
+          </div>
+          <p class="text-xs font-semibold text-slate-800">No active applications submitted yet for @${candUser}.</p>
+          <p class="text-[11px] text-slate-500 max-w-md mx-auto">Take the 5-Minute Micro-Challenge above on your code to qualify and vault into the fast-track queue with an active 72-hour anti-ghosting SLA guarantee.</p>
+        </div>
+      `;
+    }
+    lucide.createIcons();
     return;
   }
 
