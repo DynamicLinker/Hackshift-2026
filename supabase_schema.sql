@@ -1,5 +1,5 @@
 -- =============================================================================
--- ProofHired - Zero-Resume Proof-of-Competence Marketplace
+-- Horizon - Zero-Resume Proof-of-Competence Marketplace
 -- Supabase PostgreSQL Schema & Seed Migration
 -- =============================================================================
 

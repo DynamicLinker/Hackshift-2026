@@ -1,1 +1,1 @@
-"""ProofHired API Routers."""
+"""Horizon API Routers."""

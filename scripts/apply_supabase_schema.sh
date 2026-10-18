@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -e
 
-# ProofHired Supabase Schema Migration Helper
+# Horizon Supabase Schema Migration Helper
 # Usage:
 #   ./scripts/apply_supabase_schema.sh "postgresql://postgres.[ref]:[password]@aws-0-[region].pooler.supabase.com:6543/postgres"
 # or with SUPABASE_DB_URL in .env:
@@ -18,7 +18,7 @@ DB_URL="${1:-$SUPABASE_DB_URL}"
 
 if [ -z "$DB_URL" ]; then
     echo "=================================================================="
-    echo " ⚡ ProofHired Supabase Schema Setup"
+    echo " ⚡ Horizon Supabase Schema Setup"
     echo "=================================================================="
     echo "No database connection string provided."
     echo ""

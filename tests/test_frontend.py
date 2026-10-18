@@ -8,7 +8,7 @@ def test_frontend_index_serving():
     assert resp.status_code == 200
     assert "text/html" in resp.headers["content-type"]
     html = resp.text
-    assert "ProofHired" in html
+    assert "Horizon" in html
     assert "Candidate" in html
     assert "Employer" in html
     assert "Zero-Resume" in html

@@ -8,5 +8,5 @@ def test_health_check():
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "healthy"
-    assert data["app"] == "ProofHired"
+    assert data["app"] == "Horizon"
     assert data["jobs_loaded"] >= 2

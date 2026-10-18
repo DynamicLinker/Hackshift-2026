@@ -1,1 +1,1 @@
-"""ProofHired Business Logic Services."""
+"""Horizon Business Logic Services."""
