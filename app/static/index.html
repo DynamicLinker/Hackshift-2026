@@ -244,6 +244,90 @@
           <p id="gemini-audit-text" class="text-purple-800 leading-relaxed"></p>
         </div>
 
+        <!-- Git Topology & Cadence Inspection Graph -->
+        <div id="section-topology-graph-container" class="rounded-xl border border-slate-800 bg-slate-900 text-slate-100 p-4 space-y-3.5 shadow-sm slide-in">
+          
+          <!-- Header with Title, Repository Tabs, and Topology Health Badge -->
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-3">
+            <div class="flex items-center gap-2.5">
+              <div class="w-8 h-8 rounded-lg bg-blue-500/10 text-blue-400 flex items-center justify-center border border-blue-500/20 shrink-0">
+                <i data-lucide="git-fork" class="w-4 h-4"></i>
+              </div>
+              <div>
+                <div class="flex items-center gap-2 flex-wrap">
+                  <h4 class="font-bold text-sm text-white">Git Topology & Cadence Graph</h4>
+                  <span id="topology-health-badge" class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-950 text-emerald-400 border border-emerald-800 font-mono">
+                    Progressive Multi-Branch DAG
+                  </span>
+                </div>
+                <p id="topology-subtitle" class="text-[11px] text-slate-400 font-mono mt-0.5">
+                  Visual DAG proof of authentic human commits vs. bulk AI fork dump
+                </p>
+              </div>
+            </div>
+
+            <!-- Repository Switcher Pills -->
+            <div id="topology-repo-tabs" class="flex items-center gap-1.5 flex-wrap">
+              <!-- Injected dynamically: buttons for each audited repository -->
+            </div>
+          </div>
+
+          <!-- Diagnostic Metrics Strip -->
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs font-mono">
+            <div class="bg-slate-950/70 rounded-lg p-2.5 border border-slate-800/80">
+              <span class="text-[10px] text-slate-400 block uppercase">Branch Complexity</span>
+              <span id="topo-metric-branches" class="font-bold text-slate-200 text-xs sm:text-sm">3 Branches · 4 Merges</span>
+            </div>
+            <div class="bg-slate-950/70 rounded-lg p-2.5 border border-slate-800/80">
+              <span class="text-[10px] text-slate-400 block uppercase">Development Span</span>
+              <span id="topo-metric-span" class="font-bold text-slate-200 text-xs sm:text-sm">38 Days (Iterative)</span>
+            </div>
+            <div class="bg-slate-950/70 rounded-lg p-2.5 border border-slate-800/80">
+              <span class="text-[10px] text-slate-400 block uppercase">Author Purity</span>
+              <span id="topo-metric-author" class="font-bold text-emerald-400 text-xs sm:text-sm">100% GPG / SSH Match</span>
+            </div>
+            <div class="bg-slate-950/70 rounded-lg p-2.5 border border-slate-800/80">
+              <span class="text-[10px] text-slate-400 block uppercase">Cadence Health</span>
+              <span id="topo-metric-cadence" class="font-bold text-blue-400 text-xs sm:text-sm">Normal (1.2/day)</span>
+            </div>
+          </div>
+
+          <!-- Anomaly Alert Banner (shown only for flagged profiles like @ai-spammer) -->
+          <div id="topo-anomaly-alert" class="hidden rounded-lg bg-rose-950/60 border border-rose-800/80 p-3 text-xs text-rose-200 flex items-start gap-2.5">
+            <i data-lucide="alert-octagon" class="w-4 h-4 text-rose-400 shrink-0 mt-0.5"></i>
+            <div class="space-y-0.5">
+              <strong class="text-rose-300 font-semibold">Git Topology Anomaly Detected:</strong>
+              <p id="topo-anomaly-desc" class="text-rose-200 text-[11px] leading-relaxed">
+                100% of code pushed in a single bulk dump. 0 branches, 0 merges, flatline cadence. Bypassed from Fast-Track queue.
+              </p>
+            </div>
+          </div>
+
+          <!-- Visual Git Graph Canvas (SVG + interactive commit lanes) -->
+          <div class="relative bg-slate-950 rounded-xl border border-slate-800 overflow-hidden">
+            <div class="flex items-center justify-between px-3.5 py-2 border-b border-slate-800 text-[11px] text-slate-400 font-mono bg-slate-900/60">
+              <div class="flex items-center gap-2 flex-wrap">
+                <span class="text-slate-500">Branches:</span>
+                <div id="topo-branch-legend" class="flex items-center gap-2.5 flex-wrap">
+                  <!-- Injected legend: main (blue), feat (emerald), fix (purple) -->
+                </div>
+              </div>
+              <span class="text-slate-500 hidden sm:inline">Click any commit node to inspect details</span>
+            </div>
+
+            <!-- Scrollable Graph Viewport -->
+            <div id="topology-graph-viewport" class="p-3 overflow-x-auto max-h-[360px] overflow-y-auto">
+              <!-- Dynamic interactive SVG DAG + commit rows rendered by JavaScript -->
+            </div>
+          </div>
+
+          <!-- Commit Detail Inspector Drawer -->
+          <div id="topo-commit-inspector" class="bg-slate-950/80 rounded-xl border border-slate-800 p-3 text-xs font-mono space-y-1.5 text-slate-300">
+            <!-- Populated when a commit is clicked -->
+          </div>
+
+        </div>
+
         <!-- Collapsible Audited Repositories Summary -->
         <details class="group">
           <summary class="flex items-center justify-between text-xs font-bold text-slate-700 uppercase tracking-wider cursor-pointer list-none py-1 hover:text-slate-900 select-none">

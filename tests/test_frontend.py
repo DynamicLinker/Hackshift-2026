@@ -13,6 +13,8 @@ def test_frontend_index_serving():
     assert "Employer" in html
     assert "Zero-Resume" in html
     assert "Anti-Ghost" in html or "72h" in html or "ghosting" in html.lower()
+    assert "section-topology-graph-container" in html
+    assert "topology-health-badge" in html
 
 def test_static_js_serving():
     resp = client.get("/static/app.js")
@@ -21,3 +23,6 @@ def test_static_js_serving():
     assert "runCandidateAudit" in js
     assert "submitChallenge" in js
     assert "loadEmployerCockpit" in js
+    assert "renderTopologyGraph" in js
+    assert "selectTopologyCommit" in js
+    assert "openTopologyModalForCandidate" in js
