@@ -48,7 +48,7 @@ def serve_index():
     if os.path.exists(index_path):
         return FileResponse(index_path)
     return {
-        "app": "Horizon API",
+        "app": "ProofHired API",
         "docs": "/docs",
         "health": "/api/health"
     }

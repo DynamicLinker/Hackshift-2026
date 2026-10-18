@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────────
-//  Horizon Client Orchestrator  |  Clean Light-Theme SPA & Dual-Tab Sync
+//  ProofHired Client Orchestrator  |  Clean Light-Theme SPA & Dual-Tab Sync
 // ─────────────────────────────────────────────────────────────────────────────
 
 let currentCandidate   = null;
@@ -17,7 +17,7 @@ let cachedRepos        = {};  // repoName -> repo object for instant click modal
 let currentSession     = null; // { role: 'employer'|'candidate', ... }
 
 // ── Cross-Tab Real-Time Sync Channel ─────────────────────────────────────────
-const syncChannel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('horizon_sync') : null;
+const syncChannel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('proofhired_sync') : null;
 if (syncChannel) {
   syncChannel.onmessage = (event) => {
     handleSyncEvent(event.data);
@@ -112,7 +112,7 @@ async function initAuthSession() {
   }
 
   // Check per-tab sessionStorage
-  const stored = sessionStorage.getItem("horizon_session") || sessionStorage.getItem("proofhired_session");
+  const stored = sessionStorage.getItem("proofhired_session");
   if (stored) {
     try {
       const sess = JSON.parse(stored);
@@ -206,7 +206,6 @@ async function loginWithCredentials(payload, btnId, portalLabel) {
     }
     const data = await res.json();
     currentSession = data;
-    sessionStorage.setItem("horizon_session", JSON.stringify(data));
     sessionStorage.setItem("proofhired_session", JSON.stringify(data));
     applyActiveSession(data);
     showToast(`Authenticated as ${data.user_name || data.full_name || data.company_name}`, "success");
@@ -238,7 +237,6 @@ async function loginAsCandidate(username, showToastMsg = true) {
 }
 
 function logoutSession() {
-  sessionStorage.removeItem("horizon_session");
   sessionStorage.removeItem("proofhired_session");
   currentSession = null;
   if (window.history && window.history.replaceState) {

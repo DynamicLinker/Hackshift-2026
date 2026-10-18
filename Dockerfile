@@ -1,4 +1,4 @@
-# Horizon Production Container
+# ProofHired Production Container
 FROM python:3.12-slim
 
 # Install system git (required for repository cloning and commit topology inspection)

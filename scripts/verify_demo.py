@@ -1,4 +1,4 @@
-"""Horizon Live Stage Demo Verification Script.
+"""ProofHired Live Stage Demo Verification Script.
 
 Executes end-to-end verification of Git Provenance, Dynamic 5-minute Micro-Assessment,
 Vaulting to the Fast-Track Queue, and 72-hour Anti-Ghosting SLA Disposition.
@@ -15,7 +15,7 @@ from app.main import app
 
 def run_verification():
     print("\n" + "=" * 65)
-    print(" ⚡ Horizon: End-to-End Prototype Live Verification")
+    print(" ⚡ ProofHired: End-to-End Prototype Live Verification")
     print("=" * 65)
     client = TestClient(app)
 

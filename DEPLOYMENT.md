@@ -1,6 +1,6 @@
-# Horizon: Production Deployment Guide
+# ProofHired: Production Deployment Guide
 
-Deploy Horizon live in less than 3 minutes so judges and peers can interact with the live application on their phones or laptops.
+Deploy ProofHired live in less than 3 minutes so judges and peers can interact with the live application on their phones or laptops.
 
 ---
 
@@ -14,7 +14,7 @@ Deploy Horizon live in less than 3 minutes so judges and peers can interact with
 3. Click **"New +"** → **"Web Service"**.
 4. Select your `hackshift` repository.
 5. Configure the service:
-   - **Name**: `horizon` (or any name)
+   - **Name**: `proofhired` (or any name)
    - **Region**: Singapore / Frankfurt / Oregon (any)
    - **Branch**: `main`
    - **Runtime**: `Python 3`
@@ -22,7 +22,7 @@ Deploy Horizon live in less than 3 minutes so judges and peers can interact with
    - **Start Command**: `python run.py`
    - **Plan**: `Free`
 6. Click **"Deploy Web Service"**.
-   - Your application will be live at `https://horizon.onrender.com` in ~2 minutes!
+   - Your application will be live at `https://proofhired.onrender.com` in ~2 minutes!
 
 ---
 
@@ -39,9 +39,9 @@ Deploy Horizon live in less than 3 minutes so judges and peers can interact with
 
 ```bash
 # Build the container
-docker build -t horizon .
+docker build -t proofhired .
 
 # Run on port 8000
-docker run -p 8000:8000 -e PORT=8000 horizon
+docker run -p 8000:8000 -e PORT=8000 proofhired
 ```
 Open in browser: `http://localhost:8000`

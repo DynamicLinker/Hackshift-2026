@@ -5,7 +5,7 @@ from pydantic import BaseModel
 load_dotenv()
 
 class Settings(BaseModel):
-    app_name: str = "Horizon"
+    app_name: str = "ProofHired"
     environment: str = os.getenv("ENV", "development")
     port: int = int(os.getenv("PORT", 8000))
     host: str = os.getenv("HOST", "0.0.0.0")

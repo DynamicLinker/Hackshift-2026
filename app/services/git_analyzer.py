@@ -1068,7 +1068,7 @@ async def call_gemini_analysis(
 
         human_context = "authentic progressive human engineering" if is_human else "unverified bulk dump"
         prompt = (
-            f"You are the Horizon Code Provenance Auditor.\n"
+            f"You are the ProofHired Code Provenance Auditor.\n"
             f"Repository: {repo_name}\n"
             f"Expected Provenance Context: {human_context}\n"
             f"Detected Tech Stack: {', '.join(detected_tech)}\n"
@@ -1124,16 +1124,16 @@ def clone_and_inspect_repo(
         parts = cleaned.split("/")
         repo_name = parts[-1].replace(".git", "")
         owner_name = parts[-2] if len(parts) >= 2 else "user"
-        cache_dir = target_cache_dir or f"/tmp/horizon_cache/{owner_name}_{repo_name}"
+        cache_dir = target_cache_dir or f"/tmp/proofhired_cache/{owner_name}_{repo_name}"
     elif "/" in cleaned:
         owner_name, repo_name = cleaned.split("/", 1)
         repo_url = f"https://github.com/{owner_name}/{repo_name}.git"
-        cache_dir = target_cache_dir or f"/tmp/horizon_cache/{owner_name}_{repo_name}"
+        cache_dir = target_cache_dir or f"/tmp/proofhired_cache/{owner_name}_{repo_name}"
     else:
         owner_name = "developer"
         repo_name = cleaned
         repo_url = f"https://github.com/{owner_name}/{repo_name}.git"
-        cache_dir = target_cache_dir or f"/tmp/horizon_cache/{owner_name}_{repo_name}"
+        cache_dir = target_cache_dir or f"/tmp/proofhired_cache/{owner_name}_{repo_name}"
 
     # Clone if not already cached and not a local directory
     if not os.path.exists(cache_dir):
@@ -1346,14 +1346,14 @@ async def analyze_github_user(
         async with httpx.AsyncClient(timeout=0.8) as client:
             user_res = await client.get(
                 f"https://api.github.com/users/{clean_user}",
-                headers={"User-Agent": "Horizon-Provenance/1.0"}
+                headers={"User-Agent": "ProofHired-Provenance/1.0"}
             )
             
             if user_res.status_code == 200:
                 user_data = user_res.json()
                 repos_res = await client.get(
                     f"https://api.github.com/users/{clean_user}/repos?sort=updated&per_page=3",
-                    headers={"User-Agent": "Horizon-Provenance/1.0"}
+                    headers={"User-Agent": "ProofHired-Provenance/1.0"}
                 )
                 repos_data = repos_res.json() if repos_res.status_code == 200 and isinstance(repos_res.json(), list) else []
                 
@@ -1367,7 +1367,7 @@ async def analyze_github_user(
                     try:
                         commits_res = await client.get(
                             f"https://api.github.com/repos/{clean_user}/{repo_name}/commits?per_page=8",
-                            headers={"User-Agent": "Horizon-Provenance/1.0"}
+                            headers={"User-Agent": "ProofHired-Provenance/1.0"}
                         )
                         commits_data = commits_res.json() if commits_res.status_code == 200 and isinstance(commits_res.json(), list) else []
                     except Exception:

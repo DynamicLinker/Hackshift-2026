@@ -11,7 +11,7 @@ import httpx
 from app.config import settings
 from app.db.datastore import db
 
-logger = logging.getLogger("horizon.supabase")
+logger = logging.getLogger("proofhired.supabase")
 
 # Pre-seeded test users for Company and Candidate
 TEST_USERS = {

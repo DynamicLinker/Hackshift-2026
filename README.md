@@ -1,4 +1,4 @@
-# ⚡ Horizon · Zero-Resume Proof-of-Competence Platform
+# ⚡ ProofHired · Zero-Resume Proof-of-Competence Platform
 
 > **HackShift 2026** · Round 2 @ IIIT Delhi (Esya '26)  
 > **Theme**: Entrepreneurship & Employment ("Connecting Talent, Ideas, and Opportunities")  
@@ -27,10 +27,10 @@ In 2024–2026, **Generative AI broke recruitment and technical hiring**:
 
 ## 💡 2. The Solution
 
-**Horizon** eliminates PDF resumes entirely and replaces keyword screening with verifiable engineering provenance and proof-of-work:
+**ProofHired** eliminates PDF resumes entirely and replaces keyword screening with verifiable engineering provenance and proof-of-work:
 
 1. **Zero PDF Resumes**: No CV uploads, no keyword gaming. Candidates authenticate with their public GitHub handle or repository URL.
-2. **Git Commit Topology & AST Cadence Engine**: Horizon inspects the raw Git DAG, commit velocity, branch divergence, and AST code evolution over time. It instantly distinguishes authentic, progressive human development (`feat:`, `fix:`, `refactor:`) from 1-commit AI/fork bulk dumps.
+2. **Git Commit Topology & AST Cadence Engine**: ProofHired inspects the raw Git DAG, commit velocity, branch divergence, and AST code evolution over time. It instantly distinguishes authentic, progressive human development (`feat:`, `fix:`, `refactor:`) from 1-commit AI/fork bulk dumps.
 3. **Dynamic 5-Minute Micro-Assessment**:
    - An architectural defense question dynamically tailored to the candidate's **own repository code**.
    - A live, in-browser concurrency bug fix executed inside a sandboxed runtime.
@@ -43,7 +43,7 @@ In 2024–2026, **Generative AI broke recruitment and technical hiring**:
 ## 🏗️ 3. Implementation Details
 
 ### System Architecture
-Horizon is engineered as a zero-latency, production-ready system:
+ProofHired is engineered as a zero-latency, production-ready system:
 - **Backend Framework**: Python 3.13 / FastAPI asynchronous runtime with Pydantic v2 schemas and Uvicorn ASGI server.
 - **Git Topology Analyzer**: Dual-mode engine that executes shallow local clones (`git clone --depth 35`) and native `git log` / `git rev-list` subprocess inspection, paired with GitHub REST API fallback telemetry for sub-second responses.
 - **Code Execution Sandbox**: Isolated Python runtime evaluating AST syntax trees and concurrency primitives (`asyncio.Lock`, shared state race conditions) under strict timeouts.
@@ -85,7 +85,7 @@ flowchart TD
 
 ```
 ┌───────────────────────────────────────────────────────────────────────────────────────┐
-│  ⚡ HORIZON                  [ Challenger Candidate ]   [ Employer Cockpit ]   [Logout] │
+│  ⚡ PROOFHIRED               [ Challenger Candidate ]   [ Employer Cockpit ]   [Logout] │
 ├───────────────────────────────────────────────────────────────────────────────────────┤
 │                                                                                       │
 │   CANDIDATE WORKBENCH                          EMPLOYER COCKPIT (Acme Systems)        │
@@ -106,7 +106,7 @@ flowchart TD
 │  │   • [Run Code in Sandbox] (300s timer) │                                           │
 │  └────────────────────────────────────────┘                                           │
 │                                                                                       │
-│  Horizon © 2026 · Autonomous AST Provenance Engine · Zero-Resume Standard              │
+│  ProofHired © 2026 · Autonomous AST Provenance Engine · Zero-Resume Standard              │
 └───────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -130,7 +130,7 @@ source .venv/bin/activate
 # 3. Install dependencies
 pip install -r requirements.txt
 
-# 4. Start Horizon application server
+# 4. Start ProofHired application server
 python run.py
 ```
 Open your browser at **`http://localhost:8000`**.
