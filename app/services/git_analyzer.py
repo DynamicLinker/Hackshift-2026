@@ -1028,12 +1028,17 @@ async def call_gemini_analysis(
     detected_tech: List[str],
     api_key: Optional[str] = None
 ) -> Optional[str]:
-    """Calls Google Gemini API (gemini-2.5-flash) to evaluate code provenance and architecture."""
+    """Calls Google Gemini API (gemini-3.1-flash-lite with fallback) to evaluate code provenance and architecture."""
     key = api_key or os.environ.get("GEMINI_API_KEY")
     if not key:
         return None
 
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={key}"
+    preferred_model = os.environ.get("GEMINI_MODEL", "gemini-3.1-flash-lite")
+    models_to_try = [preferred_model]
+    for alt in ["gemini-3.1-flash-lite-preview", "gemini-flash-lite-latest", "gemini-2.5-flash-lite"]:
+        if alt not in models_to_try:
+            models_to_try.append(alt)
+
     prompt = (
         f"You are the ProofHired Code Provenance Auditor.\n"
         f"Repository: {repo_name}\n"
@@ -1044,19 +1049,25 @@ async def call_gemini_analysis(
     )
     payload = {"contents": [{"parts": [{"text": prompt}]}]}
 
-    try:
-        async with httpx.AsyncClient(timeout=8.0) as client:
-            resp = await client.post(url, json=payload)
-            if resp.status_code == 200:
-                data = resp.json()
-                candidates = data.get("candidates", [])
-                if candidates:
-                    parts = candidates[0].get("content", {}).get("parts", [])
-                    if parts:
-                        return parts[0].get("text", "").strip()
-    except Exception as e:
-        print(f"Gemini API analysis skipped or error: {e}")
+    for m in models_to_try:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{m}:generateContent?key={key}"
+        try:
+            async with httpx.AsyncClient(timeout=2.5) as client:
+                resp = await client.post(url, json=payload)
+                if resp.status_code == 200:
+                    data = resp.json()
+                    candidates = data.get("candidates", [])
+                    if candidates:
+                        parts = candidates[0].get("content", {}).get("parts", [])
+                        if parts:
+                            return parts[0].get("text", "").strip()
+        except (httpx.ConnectError, httpx.ConnectTimeout, httpx.NetworkError, httpx.TimeoutException):
+            # Network completely unreachable (e.g. offline sandbox or connection blocked)
+            break
+        except Exception:
+            continue
     return None
+
 
 
 def clone_and_inspect_repo(
@@ -1258,8 +1269,16 @@ async def analyze_github_user(
             audited.append(audit_obj)
 
         gemini_text = None
-        if gemini_api_key:
-            gemini_text = await call_gemini_analysis(audited[0].repo_name, "feat: implement caching\nfix: race condition", audited[0].key_technologies, gemini_api_key)
+        gemini_key = gemini_api_key or os.environ.get("GEMINI_API_KEY")
+        if gemini_key and audited:
+            gemini_text = await call_gemini_analysis(
+                audited[0].repo_name,
+                "feat: implement caching\nfix: race condition\nrefactor: async stream queue",
+                audited[0].key_technologies,
+                gemini_key
+            )
+            if gemini_text:
+                audited[0].gemini_summary = gemini_text
 
         primary_topo = audited[0].topology_graph if audited else None
         profile = CandidateProfile(

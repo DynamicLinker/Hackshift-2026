@@ -18,8 +18,17 @@ class Settings(BaseModel):
     supabase_anon_key: str = os.getenv("SUPABASE_ANON_KEY", "")
     supabase_service_role_key: str = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
 
+    # Google Gemini AI Configuration
+    gemini_api_key: str = os.getenv("GEMINI_API_KEY", "")
+    gemini_model: str = os.getenv("GEMINI_MODEL", "gemini-3.1-flash-lite")
+
     @property
     def is_supabase_enabled(self) -> bool:
         return bool(self.supabase_url and self.supabase_anon_key)
 
+    @property
+    def is_gemini_enabled(self) -> bool:
+        return bool(self.gemini_api_key)
+
 settings = Settings()
+

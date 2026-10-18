@@ -566,6 +566,18 @@ function renderAuditResults(c) {
     }
   }
 
+  // Gemini 3.1 Flash-Lite AI Architectural Audit
+  const geminiCard = document.getElementById("card-gemini-summary");
+  const geminiText = document.getElementById("card-gemini-text");
+  if (geminiCard && geminiText) {
+    if (c.gemini_analysis) {
+      geminiText.textContent = c.gemini_analysis;
+      geminiCard.classList.remove("hidden");
+    } else {
+      geminiCard.classList.add("hidden");
+    }
+  }
+
   // Update Status Board Title to Candidate's Name
   const headingName = document.getElementById("status-board-candidate-name");
   if (headingName) {
@@ -1069,6 +1081,16 @@ function openRepoDetailModal(repoName) {
         <a href="${r.repo_url}" target="_blank" class="text-blue-600 underline font-mono truncate max-w-xs">${r.repo_url}</a>
       </div>` : ''}
     </div>
+    ${r.gemini_summary ? `
+    <div class="rounded-xl p-3 bg-gradient-to-r from-blue-50 to-teal-50 border border-blue-200 text-xs space-y-1">
+      <div class="font-bold flex items-center gap-1.5 text-blue-950 text-xs">
+        <i data-lucide="sparkles" class="w-3.5 h-3.5 text-blue-600"></i>
+        <span>Gemini 3.1 Flash-Lite Architectural Reasoning</span>
+      </div>
+      <p class="text-blue-950 font-medium text-[11px] leading-relaxed">
+        ${escapeHtml(r.gemini_summary)}
+      </p>
+    </div>` : ''}
     <div class="pt-3 border-t border-slate-100 flex justify-end">
       <button onclick="switchTopologyRepo('${r.repo_name}'); closeModal('modal-status-detail'); scrollToTopologyGraph();"
         class="px-3.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-mono text-xs font-semibold flex items-center gap-1.5 transition shadow-sm active:scale-95">
