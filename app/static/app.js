@@ -57,11 +57,45 @@ function handleSyncEvent(event) {
   }
 }
 
-// ── Session Initialization & Dual-Portal Gateway ────────────────────────────
+// ── Supabase & Session Initialization ───────────────────────────────────────
+let supabaseClient = null;
+let authConfig     = null;
+
 document.addEventListener("DOMContentLoaded", async () => {
   await loadEmployerBootstrap();
+  await initSupabaseClient();
   await initAuthSession();
 });
+
+async function initSupabaseClient() {
+  try {
+    const res = await fetch("/api/auth/config");
+    if (res.ok) {
+      authConfig = await res.json();
+      const statusText = document.getElementById("supabase-status-text");
+      if (authConfig.is_supabase_enabled && window.supabase) {
+        supabaseClient = window.supabase.createClient(authConfig.supabase_url, authConfig.supabase_anon_key);
+        if (statusText) statusText.textContent = "Supabase Auth & Realtime Ready";
+
+        // Listen for live database change events
+        supabaseClient
+          .channel("public:realtime")
+          .on("postgres_changes", { event: "*", schema: "public", table: "jobs" }, () => {
+            loadCandidateJobs();
+          })
+          .on("postgres_changes", { event: "*", schema: "public", table: "applications" }, () => {
+            loadEmployerCockpit();
+            loadCandidateStatusBoard();
+          })
+          .subscribe();
+      } else {
+        if (statusText) statusText.textContent = "Standalone Test User Engine";
+      }
+    }
+  } catch (err) {
+    console.warn("Supabase init check:", err);
+  }
+}
 
 async function initAuthSession() {
   const params = new URLSearchParams(window.location.search);
@@ -69,7 +103,7 @@ async function initAuthSession() {
 
   if (paramRole === "employer") {
     const compId = params.get("company") || "comp-acme";
-    await loginAsEmployer(compId, "Acme Systems Hiring Team", false);
+    await loginAsEmployer(compId, "Sarah Jenkins (Acme Lead)", false);
     return;
   } else if (paramRole === "candidate") {
     const user = params.get("user") || "iiitd-dev";
@@ -99,83 +133,107 @@ function showLoginView() {
   lucide.createIcons();
 }
 
+function fillTestUser(type) {
+  if (type === "recruiter") {
+    const emailInput = document.getElementById("login-employer-email");
+    const pwdInput = document.getElementById("login-employer-password");
+    const compSelect = document.getElementById("login-employer-company");
+    if (emailInput) emailInput.value = "recruiter@acmesystems.io";
+    if (pwdInput) pwdInput.value = "Password123!";
+    if (compSelect) compSelect.value = "comp-acme";
+    submitEmployerLogin();
+  } else if (type === "candidate") {
+    const emailInput = document.getElementById("login-candidate-email");
+    const pwdInput = document.getElementById("login-candidate-password");
+    const userInput = document.getElementById("login-candidate-user");
+    if (emailInput) emailInput.value = "aarav@iiitd.ac.in";
+    if (pwdInput) pwdInput.value = "Password123!";
+    if (userInput) userInput.value = "iiitd-dev";
+    submitCandidateLogin();
+  }
+}
+
 function setLoginCandidateHandle(username, name) {
   const input = document.getElementById("login-candidate-user");
   if (input) input.value = username;
 }
 
 async function submitEmployerLogin() {
+  const email = document.getElementById("login-employer-email")?.value.trim() || "recruiter@acmesystems.io";
+  const password = document.getElementById("login-employer-password")?.value.trim() || "Password123!";
   const compId = document.getElementById("login-employer-company")?.value || "comp-acme";
-  const name = document.getElementById("login-employer-name")?.value.trim() || "Acme Systems Hiring Team";
-  await loginAsEmployer(compId, name);
+  const name = document.getElementById("login-employer-name")?.value.trim() || "Sarah Jenkins (Acme Lead)";
+  
+  await loginWithCredentials({
+    email,
+    password,
+    role: "employer",
+    identifier: compId,
+    name,
+  }, "btn-login-employer-submit", "Employer Cockpit");
 }
 
 async function submitCandidateLogin() {
+  const email = document.getElementById("login-candidate-email")?.value.trim() || "aarav@iiitd.ac.in";
+  const password = document.getElementById("login-candidate-password")?.value.trim() || "Password123!";
   const username = document.getElementById("login-candidate-user")?.value.trim() || "iiitd-dev";
-  await loginAsCandidate(username);
+
+  await loginWithCredentials({
+    email,
+    password,
+    role: "candidate",
+    identifier: username,
+  }, "btn-login-candidate-submit", "Candidate Portal");
+}
+
+async function loginWithCredentials(payload, btnId, portalLabel) {
+  const btn = document.getElementById(btnId);
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = `<i data-lucide="loader-2" class="w-3.5 h-3.5 animate-spin"></i><span>Entering ${portalLabel}…</span>`;
+    lucide.createIcons();
+  }
+
+  try {
+    const res = await fetch("/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.detail || "Authentication failed");
+    }
+    const data = await res.json();
+    currentSession = data;
+    sessionStorage.setItem("proofhired_session", JSON.stringify(data));
+    applyActiveSession(data);
+    showToast(`Authenticated as ${data.user_name || data.full_name || data.company_name}`, "success");
+  } catch (err) {
+    showToast("Authentication error: " + err.message, "error");
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = `<span>Enter ${portalLabel}</span><i data-lucide="arrow-right" class="w-4 h-4"></i>`;
+      lucide.createIcons();
+    }
+  }
 }
 
 async function loginAsEmployer(companyId, teamName, showToastMsg = true) {
-  const btn = document.getElementById("btn-login-employer-submit");
-  if (btn) {
-    btn.disabled = true;
-    btn.innerHTML = `<i data-lucide="loader-2" class="w-3.5 h-3.5 animate-spin"></i><span>Entering Cockpit…</span>`;
-    lucide.createIcons();
-  }
-
-  try {
-    const res = await fetch("/api/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ role: "employer", identifier: companyId, name: teamName }),
-    });
-    if (!res.ok) throw new Error("Employer authentication failed");
-    const data = await res.json();
-    currentSession = data;
-    sessionStorage.setItem("proofhired_session", JSON.stringify(data));
-    applyActiveSession(data);
-    if (showToastMsg) showToast(`Entered as ${data.company_name} Hiring Lead`, "success");
-  } catch (err) {
-    showToast("Login error: " + err.message, "error");
-  } finally {
-    if (btn) {
-      btn.disabled = false;
-      btn.innerHTML = `<span>Enter Employer Cockpit</span><i data-lucide="arrow-right" class="w-4 h-4"></i>`;
-      lucide.createIcons();
-    }
-  }
+  await loginWithCredentials({
+    role: "employer",
+    identifier: companyId,
+    name: teamName,
+  }, "btn-login-employer-submit", "Employer Cockpit");
 }
 
 async function loginAsCandidate(username, showToastMsg = true) {
-  const btn = document.getElementById("btn-login-candidate-submit");
-  if (btn) {
-    btn.disabled = true;
-    btn.innerHTML = `<i data-lucide="loader-2" class="w-3.5 h-3.5 animate-spin"></i><span>Entering Portal…</span>`;
-    lucide.createIcons();
-  }
-
-  try {
-    const cleanUser = username.trim().replace(/^@/, "") || "iiitd-dev";
-    const res = await fetch("/api/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ role: "candidate", identifier: cleanUser }),
-    });
-    if (!res.ok) throw new Error("Candidate authentication failed");
-    const data = await res.json();
-    currentSession = data;
-    sessionStorage.setItem("proofhired_session", JSON.stringify(data));
-    applyActiveSession(data);
-    if (showToastMsg) showToast(`Entered as @${data.github_username} (${data.full_name})`, "success");
-  } catch (err) {
-    showToast("Login error: " + err.message, "error");
-  } finally {
-    if (btn) {
-      btn.disabled = false;
-      btn.innerHTML = `<span>Enter Candidate Portal</span><i data-lucide="arrow-right" class="w-4 h-4"></i>`;
-      lucide.createIcons();
-    }
-  }
+  const cleanUser = username.trim().replace(/^@/, "") || "iiitd-dev";
+  await loginWithCredentials({
+    role: "candidate",
+    identifier: cleanUser,
+  }, "btn-login-candidate-submit", "Candidate Portal");
 }
 
 function logoutSession() {
@@ -199,14 +257,18 @@ function applyActiveSession(session) {
   const roleBadgeEl = document.getElementById("session-role-badge");
 
   if (session.role === "employer") {
-    if (nameEl) nameEl.textContent = session.company_name || "Employer";
+    // Apply Executive Operations Theme
+    document.body.className = "theme-employer min-h-screen flex flex-col antialiased selection:bg-slate-900 selection:text-white";
+    if (nameEl) nameEl.textContent = session.company_name || "Acme Systems";
     if (avatarEl) avatarEl.textContent = (session.company_name || "A")[0].toUpperCase();
-    if (roleTextEl) roleTextEl.textContent = "Employer (72h SLA Active)";
+    if (roleTextEl) roleTextEl.textContent = `${session.user_name || "Hiring Lead"} · 72h SLA Active`;
     if (roleBadgeEl) {
       roleBadgeEl.className = "text-[10px] text-blue-700 font-medium flex items-center gap-1";
     }
     switchTab("employer");
   } else {
+    // Apply Obsidian Developer Workbench Theme
+    document.body.className = "theme-candidate min-h-screen flex flex-col antialiased selection:bg-blue-600 selection:text-white";
     if (nameEl) nameEl.textContent = session.full_name || `@${session.github_username}`;
     if (avatarEl) {
       if (session.avatar_url) {
@@ -217,7 +279,7 @@ function applyActiveSession(session) {
     }
     if (roleTextEl) roleTextEl.textContent = `@${session.github_username} (Verified Candidate)`;
     if (roleBadgeEl) {
-      roleBadgeEl.className = "text-[10px] text-emerald-700 font-medium flex items-center gap-1";
+      roleBadgeEl.className = "text-[10px] text-emerald-400 font-medium flex items-center gap-1";
     }
     const inputUser = document.getElementById("input-github-user");
     if (inputUser) inputUser.value = session.github_username;
@@ -295,17 +357,8 @@ function closeModal(id) {
   document.getElementById(id)?.classList.add("hidden");
 }
 
-function toggleGeminiKeyInput() {
-  const container = document.getElementById("gemini-key-container");
-  const isHidden = container.classList.contains("hidden");
-  container.classList.toggle("hidden");
-  document.getElementById("gemini-toggle-text").textContent = isHidden
-    ? "− Hide Gemini API Key"
-    : "+ Add Gemini API Key for deep architectural reasoning";
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
-//  TAB NAVIGATION
+//  TAB NAVIGATION & THEME SWITCHING
 // ─────────────────────────────────────────────────────────────────────────────
 
 function switchTab(tab) {
@@ -314,17 +367,18 @@ function switchTab(tab) {
   const btnCand = document.getElementById("btn-tab-candidate");
   const btnEmp  = document.getElementById("btn-tab-employer");
 
-  const activeClass   = "flex items-center gap-2 px-4 py-1.5 rounded-md text-xs font-semibold transition-all bg-white text-slate-900 shadow-sm border border-slate-200";
-  const inactiveClass = "flex items-center gap-2 px-4 py-1.5 rounded-md text-xs font-medium transition-all text-slate-600 hover:text-slate-900 hover:bg-slate-50";
-
   if (tab === "candidate") {
+    document.body.className = "theme-candidate min-h-screen flex flex-col antialiased selection:bg-blue-600 selection:text-white";
     candTab.classList.remove("hidden"); empTab.classList.add("hidden");
-    btnCand.className = activeClass;    btnEmp.className  = inactiveClass;
+    btnCand.className = "flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-semibold transition-all bg-emerald-950/80 text-emerald-300 border border-emerald-700/80 shadow-sm";
+    btnEmp.className  = "flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-medium transition-all text-slate-400 hover:text-slate-200 hover:bg-slate-800/60";
     loadCandidateStatusBoard();
     loadCandidateJobs();
   } else {
+    document.body.className = "theme-employer min-h-screen flex flex-col antialiased selection:bg-slate-900 selection:text-white";
     empTab.classList.remove("hidden");  candTab.classList.add("hidden");
-    btnEmp.className  = activeClass;    btnCand.className = inactiveClass;
+    btnEmp.className  = "flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-semibold transition-all bg-white text-slate-900 shadow-sm border border-slate-300";
+    btnCand.className = "flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-medium transition-all text-slate-600 hover:text-slate-900 hover:bg-slate-50";
     loadEmployerCockpit();
   }
   lucide.createIcons();
@@ -342,7 +396,6 @@ function setCandidateDemo(username) {
 
 async function runCandidateAudit(isInitial = false) {
   const rawInput = document.getElementById("input-github-user").value.trim();
-  const geminiKey = document.getElementById("input-gemini-key")?.value.trim() || null;
 
   if (!rawInput) {
     showToast("Please enter a GitHub username or repository URL.", "warn");
@@ -503,15 +556,6 @@ function renderAuditResults(c) {
   // Reload the status board and available jobs strictly for this audited candidate
   loadCandidateStatusBoard();
   loadCandidateJobs();
-
-  // Gemini Analysis Banner
-  const geminiBanner = document.getElementById("gemini-audit-banner");
-  if (c.gemini_analysis) {
-    geminiBanner.classList.remove("hidden");
-    document.getElementById("gemini-audit-text").textContent = c.gemini_analysis;
-  } else {
-    geminiBanner.classList.add("hidden");
-  }
 
   // Audited Repos Table (Clickable Rows)
   const tbody = document.getElementById("table-audited-repos");
@@ -985,7 +1029,7 @@ function openRepoDetailModal(repoName) {
   document.getElementById("modal-detail-content").innerHTML = `
     <div class="rounded-lg p-3 ${isHuman ? 'bg-emerald-50 border border-emerald-200' : 'bg-rose-50 border border-rose-200'} space-y-1">
       <div class="font-bold text-sm ${isHuman ? 'text-emerald-900' : 'text-rose-900'}">
-        ${isHuman ? '✓ Verified Progressive Human Cadence' : '⚠ Flagged 1-Commit AI/Bulk Dump'}
+        ${isHuman ? '✓ Verified Progressive Human Cadence' : '⚠ Flagged: 1-Commit Bulk Dump (Synthetic Ingestion)'}
       </div>
       <p class="text-slate-600">
         Total Commits Analyzed: <strong>${r.total_commits}</strong> · Provenance Rating: <strong>${r.provenance_rating}%</strong>
@@ -1006,14 +1050,6 @@ function openRepoDetailModal(repoName) {
         <a href="${r.repo_url}" target="_blank" class="text-blue-600 underline font-mono truncate max-w-xs">${r.repo_url}</a>
       </div>` : ''}
     </div>
-    ${r.gemini_summary ? `
-    <div class="rounded-lg bg-purple-50 border border-purple-200 p-3 space-y-1">
-      <div class="font-bold text-purple-900 flex items-center gap-1">
-        <i data-lucide="sparkles" class="w-3 h-3 text-purple-600"></i>
-        <span>Gemini Architectural Evaluation</span>
-      </div>
-      <p class="text-purple-800 leading-relaxed">${r.gemini_summary}</p>
-    </div>` : ''}
     <div class="pt-3 border-t border-slate-100 flex justify-end">
       <button onclick="switchTopologyRepo('${r.repo_name}'); closeModal('modal-status-detail'); scrollToTopologyGraph();"
         class="px-3.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-mono text-xs font-semibold flex items-center gap-1.5 transition shadow-sm active:scale-95">

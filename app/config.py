@@ -10,4 +10,13 @@ class Settings(BaseModel):
     assessment_duration_seconds: int = 300  # 5 minutes
     network_grace_seconds: int = 15
 
+    # Supabase Configuration
+    supabase_url: str = os.getenv("SUPABASE_URL", "")
+    supabase_anon_key: str = os.getenv("SUPABASE_ANON_KEY", "")
+    supabase_service_role_key: str = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
+
+    @property
+    def is_supabase_enabled(self) -> bool:
+        return bool(self.supabase_url and self.supabase_anon_key)
+
 settings = Settings()

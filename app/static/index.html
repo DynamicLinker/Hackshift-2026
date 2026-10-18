@@ -6,6 +6,7 @@
   <title>ProofHired | Zero-Resume Proof-of-Competence Marketplace</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
     tailwind.config = {
       theme: {
@@ -34,7 +35,7 @@
   </script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
-    body { font-family: 'Inter', sans-serif; }
+    body { font-family: 'Inter', sans-serif; transition: background-color 0.25s ease, color 0.25s ease; }
     code, pre, textarea.code-font, .font-mono { font-family: 'JetBrains Mono', monospace; }
     .pulse-urgent { animation: pulseUrgent 1.6s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
     @keyframes pulseUrgent { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
@@ -43,8 +44,43 @@
     /* Custom scrollbar for code and queues */
     ::-webkit-scrollbar { width: 6px; height: 6px; }
     ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 9999px; }
-    ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 9999px; }
+    ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+
+    /* ── Distinct Palette: Employer Cockpit (Executive Operations) ──────── */
+    body.theme-employer {
+      background-color: #f1f5f9;
+      color: #0f172a;
+    }
+    body.theme-employer header {
+      background-color: rgba(255, 255, 255, 0.96);
+      border-bottom: 1px solid #cbd5e1;
+    }
+
+    /* ── Distinct Palette: Candidate Portal (Obsidian Workbench) ────────── */
+    body.theme-candidate {
+      background-color: #080d1a;
+      color: #f8fafc;
+    }
+    body.theme-candidate header {
+      background-color: rgba(11, 17, 32, 0.96);
+      border-bottom: 1px solid #1e293b;
+    }
+    body.theme-candidate #tab-candidate .cand-panel {
+      background-color: #0d1527;
+      border-color: #1e293b;
+      color: #f8fafc;
+    }
+    body.theme-candidate #tab-candidate .cand-subcard {
+      background-color: #090e1c;
+      border-color: #1a253c;
+    }
+    body.theme-candidate #tab-candidate input,
+    body.theme-candidate #tab-candidate select {
+      background-color: #060a14;
+      border-color: #1e293b;
+      color: #f8fafc;
+    }
   </style>
 </head>
 <body class="bg-slate-50 text-slate-900 min-h-screen flex flex-col antialiased selection:bg-slate-900 selection:text-white">
@@ -72,74 +108,101 @@
           <p class="text-xs text-slate-400 font-medium">Zero-Resume Proof-of-Competence Marketplace</p>
         </div>
       </div>
-      <div class="flex items-center gap-2 text-xs text-slate-400 font-mono">
+      <div id="supabase-status-pill" class="flex items-center gap-2 text-xs text-slate-300 font-mono bg-slate-900/90 border border-slate-800 px-3 py-1.5 rounded-full">
         <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
-        <span class="text-slate-300">Dual-Session Gateway</span>
+        <span id="supabase-status-text">Supabase &amp; Live Realtime Ready</span>
       </div>
     </div>
 
     <!-- Main Card Gateway -->
-    <div class="max-w-6xl w-full mx-auto my-8 z-10 space-y-6">
+    <div class="max-w-6xl w-full mx-auto my-6 z-10 space-y-6">
       <div class="text-center max-w-2xl mx-auto space-y-2">
         <h1 class="text-2xl sm:text-4xl font-extrabold tracking-tight text-white">
-          Select Your Portal For This Tab
+          Authenticate Your Session For This Tab
         </h1>
         <p class="text-sm text-slate-400 leading-relaxed">
-          Each browser tab retains its own independent session. Open Tab 1 as 
+          Each browser tab retains its own independent session. Run Tab 1 as 
           <strong class="text-blue-400 font-semibold">Employer</strong> and Tab 2 as 
           <strong class="text-emerald-400 font-semibold">Candidate</strong> for live cross-tab demo verification.
         </p>
+
+        <!-- 1-Click Demo Test User Autofill Strip -->
+        <div class="flex flex-wrap items-center justify-center gap-2.5 pt-3">
+          <span class="text-xs text-slate-400 font-medium">1-Click Test Users:</span>
+          <button type="button" onclick="fillTestUser('recruiter')"
+            class="px-3 py-1.5 rounded-xl bg-blue-950/80 hover:bg-blue-900 border border-blue-700/60 text-blue-300 text-xs font-semibold transition flex items-center gap-1.5 shadow-sm active:scale-95">
+            <i data-lucide="building-2" class="w-3.5 h-3.5 text-blue-400"></i>
+            <span>Acme Recruiter (recruiter@acmesystems.io)</span>
+          </button>
+          <button type="button" onclick="fillTestUser('candidate')"
+            class="px-3 py-1.5 rounded-xl bg-emerald-950/80 hover:bg-emerald-900 border border-emerald-700/60 text-emerald-300 text-xs font-semibold transition flex items-center gap-1.5 shadow-sm active:scale-95">
+            <i data-lucide="user-check" class="w-3.5 h-3.5 text-emerald-400"></i>
+            <span>Aarav Sharma (aarav@iiitd.ac.in)</span>
+          </button>
+        </div>
       </div>
 
       <!-- Two Gateway Cards Grid -->
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 max-w-4xl mx-auto pt-2">
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 max-w-4xl mx-auto pt-1">
 
         <!-- Card 1: Employer Cockpit -->
-        <div class="rounded-2xl border border-slate-800 bg-slate-900/90 p-6 sm:p-7 space-y-5 shadow-2xl backdrop-blur-md flex flex-col justify-between hover:border-blue-500/50 transition">
+        <div class="rounded-2xl border border-blue-900/60 bg-gradient-to-b from-[#0b1222] to-[#080d19] p-6 sm:p-7 space-y-5 shadow-2xl backdrop-blur-md flex flex-col justify-between hover:border-blue-500/50 transition">
           <div class="space-y-4">
             <div class="flex items-center justify-between">
-              <div class="w-12 h-12 rounded-xl bg-blue-600/10 border border-blue-500/20 text-blue-400 flex items-center justify-center">
+              <div class="w-12 h-12 rounded-xl bg-blue-600/15 border border-blue-500/30 text-blue-400 flex items-center justify-center">
                 <i data-lucide="building-2" class="w-6 h-6"></i>
               </div>
-              <span class="px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wide uppercase bg-blue-950 text-blue-400 border border-blue-800">
-                Hiring Command
+              <span class="px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wide uppercase bg-blue-950 text-blue-300 border border-blue-800">
+                Company Operations
               </span>
             </div>
 
             <div>
               <h2 class="text-lg font-bold text-white">Employer Cockpit</h2>
               <p class="text-xs text-slate-400 mt-1 leading-relaxed">
-                Post new engineering openings, inspect verified commit topology DAGs, bypass cold resume spam, and enforce 72-hour Anti-Ghosting SLAs.
+                Publish engineering roles, inspect candidate Git commit DAGs, bypass cold resume spam, and enforce 72-hour Anti-Ghosting SLAs.
               </p>
             </div>
 
-            <div class="space-y-3 pt-2">
+            <div class="space-y-3 pt-1">
               <div>
-                <label class="block text-xs font-semibold text-slate-300 mb-1.5">Select Company Profile:</label>
-                <select id="login-employer-company" class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs font-medium text-slate-200 focus:border-blue-500 focus:outline-none">
-                  <option value="comp-acme">Acme Systems (98.2% Popularity · Verified Responsive)</option>
-                  <option value="comp-nova">Nova Labs (88.0% Popularity · Fast-Track Hiring)</option>
-                  <option value="comp-phantom">Phantom Corp (62.0% Popularity · Ghost Risk Warning)</option>
-                </select>
+                <label class="block text-xs font-semibold text-slate-300 mb-1">Company Account Email:</label>
+                <input id="login-employer-email" type="email" value="recruiter@acmesystems.io"
+                  class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs font-medium text-slate-200 focus:border-blue-500 focus:outline-none font-mono">
               </div>
 
               <div>
-                <label class="block text-xs font-semibold text-slate-300 mb-1.5">Hiring Team Lead:</label>
-                <input id="login-employer-name" type="text" value="Acme Systems Hiring Team"
+                <label class="block text-xs font-semibold text-slate-300 mb-1">Password:</label>
+                <input id="login-employer-password" type="password" value="Password123!"
                   class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs font-medium text-slate-200 focus:border-blue-500 focus:outline-none font-mono">
+              </div>
+
+              <div class="grid grid-cols-2 gap-2">
+                <div>
+                  <label class="block text-xs font-semibold text-slate-300 mb-1">Company Profile:</label>
+                  <select id="login-employer-company" class="w-full px-2.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs font-medium text-slate-200 focus:border-blue-500 focus:outline-none">
+                    <option value="comp-acme">Acme Systems (98% SLA)</option>
+                    <option value="comp-nova">Nova Labs (88% SLA)</option>
+                    <option value="comp-phantom">Phantom Corp (62% SLA)</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-xs font-semibold text-slate-300 mb-1">Hiring Lead / Team:</label>
+                  <input id="login-employer-name" type="text" value="Sarah Jenkins (Acme Lead)"
+                    class="w-full px-2.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs font-medium text-slate-200 focus:border-blue-500 focus:outline-none">
+                </div>
               </div>
             </div>
 
             <div class="rounded-xl bg-slate-950/80 border border-slate-800/80 p-3 space-y-1.5 text-xs text-slate-400">
               <div class="flex items-center gap-2 text-slate-300 font-semibold text-[11px]">
                 <i data-lucide="shield-check" class="w-3.5 h-3.5 text-blue-400"></i>
-                <span>Enforced Features in Cockpit</span>
+                <span>Enforced Cockpit Features</span>
               </div>
               <ul class="text-[11px] space-y-1 text-slate-400 pl-4 list-disc">
-                <li>Post new jobs with live cross-tab sync</li>
                 <li>Fast-Track priority queue with 72h SLA countdown</li>
-                <li>Inspect candidate Git DAG topologies & code diffs</li>
-                <li>1-click interview scheduling & offer extension</li>
+                <li>Interactive Git Topology DAG &amp; AST diff inspector</li>
+                <li>1-click interview scheduling &amp; offer extension</li>
               </ul>
             </div>
           </div>
@@ -160,46 +223,39 @@
         </div>
 
         <!-- Card 2: Candidate Portal -->
-        <div class="rounded-2xl border border-slate-800 bg-slate-900/90 p-6 sm:p-7 space-y-5 shadow-2xl backdrop-blur-md flex flex-col justify-between hover:border-emerald-500/50 transition">
+        <div class="rounded-2xl border border-emerald-900/60 bg-gradient-to-b from-[#09151c] to-[#070e17] p-6 sm:p-7 space-y-5 shadow-2xl backdrop-blur-md flex flex-col justify-between hover:border-emerald-500/50 transition">
           <div class="space-y-4">
             <div class="flex items-center justify-between">
-              <div class="w-12 h-12 rounded-xl bg-emerald-600/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center">
+              <div class="w-12 h-12 rounded-xl bg-emerald-600/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center">
                 <i data-lucide="code-2" class="w-6 h-6"></i>
               </div>
-              <span class="px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wide uppercase bg-emerald-950 text-emerald-400 border border-emerald-800">
-                Developer Portal
+              <span class="px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wide uppercase bg-emerald-950 text-emerald-300 border border-emerald-800">
+                Developer Workbench
               </span>
             </div>
 
             <div>
               <h2 class="text-lg font-bold text-white">Candidate Portal</h2>
               <p class="text-xs text-slate-400 mt-1 leading-relaxed">
-                Audit your GitHub commit trees, verify your AST progressive cadence, and solve a 5-minute technical challenge to vault directly to #1.
+                Audit authentic GitHub commit DAGs, verify AST progression, and complete a 5-minute technical challenge to vault to #1.
               </p>
             </div>
 
-            <div class="space-y-3 pt-2">
+            <div class="space-y-3 pt-1">
               <div>
-                <label class="block text-xs font-semibold text-slate-300 mb-1.5">Choose Demo Persona or GitHub Handle:</label>
-                <div class="grid grid-cols-2 gap-2 mb-2">
-                  <button type="button" onclick="setLoginCandidateHandle('iiitd-dev', 'Aarav Sharma')"
-                    class="p-2 rounded-xl bg-slate-950 border border-emerald-500/30 text-left hover:border-emerald-500 transition">
-                    <div class="text-xs font-bold text-emerald-400 flex items-center gap-1">
-                      <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-                      <span>Verified Dev</span>
-                    </div>
-                    <div class="text-[10px] text-slate-400 mt-0.5">Aarav Sharma (@iiitd-dev)</div>
-                  </button>
-                  <button type="button" onclick="setLoginCandidateHandle('ai-spammer', 'AutoCoder 9000')"
-                    class="p-2 rounded-xl bg-slate-950 border border-rose-500/30 text-left hover:border-rose-500 transition">
-                    <div class="text-xs font-bold text-rose-400 flex items-center gap-1">
-                      <span class="w-1.5 h-1.5 rounded-full bg-rose-400"></span>
-                      <span>AI Spammer</span>
-                    </div>
-                    <div class="text-[10px] text-slate-400 mt-0.5">AutoCoder (@ai-spammer)</div>
-                  </button>
-                </div>
+                <label class="block text-xs font-semibold text-slate-300 mb-1">Developer Account Email:</label>
+                <input id="login-candidate-email" type="email" value="aarav@iiitd.ac.in"
+                  class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs font-medium text-slate-200 focus:border-emerald-500 focus:outline-none font-mono">
+              </div>
 
+              <div>
+                <label class="block text-xs font-semibold text-slate-300 mb-1">Password:</label>
+                <input id="login-candidate-password" type="password" value="Password123!"
+                  class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs font-medium text-slate-200 focus:border-emerald-500 focus:outline-none font-mono">
+              </div>
+
+              <div>
+                <label class="block text-xs font-semibold text-slate-300 mb-1">GitHub Username / Handle:</label>
                 <div class="relative">
                   <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500 font-mono text-xs">@</span>
                   <input id="login-candidate-user" type="text" value="iiitd-dev"
@@ -212,13 +268,12 @@
             <div class="rounded-xl bg-slate-950/80 border border-slate-800/80 p-3 space-y-1.5 text-xs text-slate-400">
               <div class="flex items-center gap-2 text-slate-300 font-semibold text-[11px]">
                 <i data-lucide="check-circle-2" class="w-3.5 h-3.5 text-emerald-400"></i>
-                <span>Enforced Features in Portal</span>
+                <span>Enforced Portal Features</span>
               </div>
               <ul class="text-[11px] space-y-1 text-slate-400 pl-4 list-disc">
-                <li>Real Git repository clone & AST topology analysis</li>
-                <li>Tailored 5-min micro-assessment with timer</li>
-                <li>Real-time notification of newly posted jobs</li>
-                <li>72-hour anti-ghosting SLA guarantee tracking</li>
+                <li>Native Git repository clone &amp; AST DAG topology analysis</li>
+                <li>Tailored 5-min self-repo challenge with timer &amp; sandbox</li>
+                <li>Strict 72-hour anti-ghosting SLA guarantee tracking</li>
               </ul>
             </div>
           </div>
@@ -242,8 +297,8 @@
 
       <!-- Demo Workflow Footnote -->
       <div class="max-w-2xl mx-auto rounded-xl bg-slate-900/60 border border-slate-800/80 p-3.5 text-xs text-slate-400 text-center">
-        <span class="text-slate-300 font-semibold">Demo Quickflow:</span>
-        Tab 1 posts a role opening as Employer ➔ Tab 2 logs in as Candidate, sees the job match, runs Git audit & submits the 5-min challenge ➔ Tab 1 switches to see the #1 Fast-Track queue & schedules interview!
+        <span class="text-slate-300 font-semibold">Demo Flow:</span>
+        Tab 1 posts an opening as Employer ➔ Tab 2 logs in as Candidate, sees the match, audits Git DAG &amp; solves the 5-min challenge ➔ Tab 1 switches to view the Fast-Track candidate &amp; schedules interview!
       </div>
     </div>
 
@@ -375,18 +430,13 @@
               </button>
             </div>
 
-            <!-- Optional Gemini reasoning toggle -->
-            <div class="flex items-center justify-between px-1">
-              <button type="button" onclick="toggleGeminiKeyInput()" class="text-[11px] text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1">
-                <i data-lucide="sparkles" class="w-3 h-3 text-purple-600"></i>
-                <span id="gemini-toggle-text">+ Add Optional Gemini Key</span>
-              </button>
-              <span class="text-[10px] text-slate-400">Offline AST & Git topology active</span>
-            </div>
-            <div id="gemini-key-container" class="hidden pt-1">
-              <input id="input-gemini-key" type="password"
-                placeholder="Paste Gemini API Key (e.g. AIzaSy...)"
-                class="w-full px-3 py-1.5 rounded-lg bg-slate-50 border border-slate-300 text-xs font-mono text-slate-800 placeholder-slate-400 focus:bg-white focus:border-blue-600">
+            <!-- Native Git AST Engine Telemetry Indicator -->
+            <div class="flex items-center justify-between px-1 text-[11px] text-slate-400 font-mono">
+              <span class="flex items-center gap-1.5 text-emerald-400">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                <span>Native Git DAG Analyzer</span>
+              </span>
+              <span title="Calculated from AST structural delta variance across commit history">AST Syntax Engine Active</span>
             </div>
           </div>
         </div>
@@ -408,7 +458,7 @@
       </div>
 
       <!-- Candidate Verified Dossier Card (Visible once audited) -->
-      <div id="section-audit-results" class="bg-white rounded-2xl border border-slate-200/90 p-5 shadow-sm space-y-4 slide-in">
+      <div id="section-audit-results" class="cand-panel bg-white rounded-2xl border border-slate-200/90 p-5 shadow-sm space-y-4 slide-in">
         <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-100">
           
           <!-- Identity Info -->
@@ -426,7 +476,7 @@
               
               <div class="flex items-center gap-2 mt-1.5 flex-wrap">
                 <div id="audit-ownership-badge" class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                  <i data-lucide="check-circle-2" class="w-3 h-3 text-emerald-600"></i>
+                  <i data-lucide="check-circle-2" class="w-3.5 h-3.5 text-emerald-600"></i>
                   <span>Verified Contributor (100% Match)</span>
                 </div>
                 <div id="audit-topology-badge" class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-700 border border-slate-200">
@@ -458,21 +508,12 @@
         </div>
 
         <!-- Next Step Guidance Callout -->
-        <div class="rounded-xl bg-slate-50 border border-slate-200/90 p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+        <div class="cand-subcard rounded-xl bg-slate-50 border border-slate-200/90 p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
           <div class="flex items-center gap-2 text-slate-700">
             <i data-lucide="info" class="w-4 h-4 text-blue-600 shrink-0"></i>
             <span><strong>How Proof Scores Work:</strong> Your official competence score is awarded when you complete the 5-minute assessment for a specific role below.</span>
           </div>
           <span class="text-[11px] text-slate-500 shrink-0 font-medium">Guaranteed 72h Turnaround</span>
-        </div>
-
-        <!-- Optional Gemini Banner -->
-        <div id="gemini-audit-banner" class="hidden rounded-xl bg-purple-50/80 border border-purple-200 p-3.5 text-xs space-y-1">
-          <div class="flex items-center gap-1.5 font-bold text-purple-900">
-            <i data-lucide="sparkles" class="w-3.5 h-3.5 text-purple-600"></i>
-            <span>Gemini Architectural Evaluation</span>
-          </div>
-          <p id="gemini-audit-text" class="text-purple-800 leading-relaxed"></p>
         </div>
 
         <!-- Git Topology & Cadence Inspection Graph -->

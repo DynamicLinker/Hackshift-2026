@@ -20,6 +20,9 @@ def test_frontend_index_serving():
     assert "session-active-pill" in html
     assert "btn-login-employer-submit" in html
     assert "btn-login-candidate-submit" in html
+    assert "supabase" in html.lower()
+    assert "theme-employer" in html
+    assert "theme-candidate" in html
 
 def test_static_js_serving():
     resp = client.get("/static/app.js")
@@ -36,3 +39,5 @@ def test_static_js_serving():
     assert "loginAsCandidate" in js
     assert "logoutSession" in js
     assert "broadcastSyncEvent" in js
+    assert "initSupabaseClient" in js
+    assert "fillTestUser" in js

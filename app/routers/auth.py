@@ -1,27 +1,90 @@
 """Authentication & Session Router.
 
-Provides fast dual-portal session logins for Candidate and Employer roles.
+Provides Supabase Auth integration, dual-portal session logins, and test user management.
 """
 
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
+from app.config import settings
 from app.db.datastore import db
 from app.services.git_analyzer import analyze_github_user
+from app.services.supabase_service import supabase_service
 
 router = APIRouter(prefix="/api/auth", tags=["Auth"])
 
 
 class LoginRequest(BaseModel):
-    role: str = Field(..., description="'employer' or 'candidate'")
-    identifier: str = Field(..., description="company_id or github_username")
+    role: Optional[str] = Field(None, description="'employer' or 'candidate'")
+    identifier: Optional[str] = Field(None, description="company_id or github_username")
+    email: Optional[str] = Field(None, description="Test user or Supabase email")
+    password: Optional[str] = Field(None, description="Account password")
     name: Optional[str] = None
+
+
+@router.get("/config")
+def get_auth_config():
+    """Returns Supabase client configuration and demo test users for the frontend."""
+    return {
+        "supabase_url": settings.supabase_url,
+        "supabase_anon_key": settings.supabase_anon_key,
+        "is_supabase_enabled": settings.is_supabase_enabled,
+        "test_users": supabase_service.get_test_users(),
+    }
 
 
 @router.post("/login")
 async def login(payload: LoginRequest):
-    """Authenticates a portal session for Candidate or Employer."""
+    """Authenticates a portal session via Supabase, test user credentials, or direct role persona."""
+    # 1. Email + Password Flow (Supabase & Test User Authentication)
+    if payload.email and payload.password:
+        auth_user = await supabase_service.authenticate_user(payload.email, payload.password)
+        if not auth_user:
+            raise HTTPException(status_code=401, detail="Invalid email or password.")
+
+        role = auth_user["role"]
+        if role == "employer":
+            company_id = auth_user.get("company_id") or "comp-acme"
+            company = db.get_company(company_id) or db.get_company("comp-acme")
+            return {
+                "status": "authenticated",
+                "role": "employer",
+                "auth_source": auth_user.get("auth_source", "test_user_credential"),
+                "email": auth_user["email"],
+                "company_id": company.id,
+                "company_name": company.name,
+                "user_name": auth_user.get("display_name") or f"{company.name} Hiring Team",
+                "popularity_score": company.popularity_score,
+                "is_verified_responsive": company.is_verified_responsive,
+                "total_openings": len([j for j in db.list_jobs() if j.company_id == company.id]),
+            }
+        else:
+            github_username = auth_user.get("github_username") or "iiitd-dev"
+            candidate = db.get_candidate(f"cand_{github_username}") or db.get_candidate(github_username)
+            if not candidate or not candidate.topology_graph:
+                candidate = await analyze_github_user(github_username)
+                db.save_candidate(candidate)
+
+            return {
+                "status": "authenticated",
+                "role": "candidate",
+                "auth_source": auth_user.get("auth_source", "test_user_credential"),
+                "email": auth_user["email"],
+                "candidate_id": candidate.id,
+                "github_username": candidate.github_username,
+                "full_name": auth_user.get("display_name") or candidate.full_name,
+                "avatar_url": candidate.avatar_url,
+                "git_provenance_score": candidate.git_provenance_score,
+                "commit_topology_status": candidate.commit_topology_status,
+                "fast_track_qualified": candidate.fast_track_qualified,
+                "audited_repos_count": len(candidate.audited_repos),
+            }
+
+    # 2. Direct Role/Identifier Flow (For URL shortcuts ?role=employer and quick testing)
+    if not payload.role or not payload.identifier:
+        raise HTTPException(status_code=400, detail="Must provide either email/password or role/identifier.")
+
     role = payload.role.lower().strip()
     identifier = payload.identifier.strip().lstrip("@")
 
@@ -65,7 +128,7 @@ async def login(payload: LoginRequest):
 
 @router.get("/session")
 def get_session_options():
-    """Returns available demo personas and companies for instantaneous login selection."""
+    """Returns available demo personas, test users, and companies for instantaneous login selection."""
     companies = [
         {
             "id": c.id,
@@ -84,12 +147,13 @@ def get_session_options():
         },
         {
             "username": "ai-spammer",
-            "full_name": "AutoCoder 9000",
-            "tag": "Flagged AI Bot (Bulk Dump)",
+            "full_name": "Benchmark Profile",
+            "tag": "Flagged Bulk Dump (Synthetic Ingestion)",
             "status": "flagged_bulk_dump",
         },
     ]
     return {
         "companies": companies,
         "candidates": candidates,
+        "test_users": supabase_service.get_test_users(),
     }
