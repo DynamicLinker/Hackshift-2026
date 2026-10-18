@@ -6,7 +6,7 @@ import os
 
 from app.config import settings
 from app.db.datastore import db
-from app.routers import candidate, employer
+from app.routers import candidate, employer, auth
 
 app = FastAPI(
     title=settings.app_name,
@@ -30,6 +30,7 @@ app.mount("/static", StaticFiles(directory="app/static"), name="static")
 # Include Routers
 app.include_router(candidate.router)
 app.include_router(employer.router)
+app.include_router(auth.router)
 
 @app.get("/api/health")
 def health_check():

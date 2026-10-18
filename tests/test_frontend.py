@@ -15,6 +15,11 @@ def test_frontend_index_serving():
     assert "Anti-Ghost" in html or "72h" in html or "ghosting" in html.lower()
     assert "section-topology-graph-container" in html
     assert "topology-health-badge" in html
+    assert "view-login" in html
+    assert "view-app" in html
+    assert "session-active-pill" in html
+    assert "btn-login-employer-submit" in html
+    assert "btn-login-candidate-submit" in html
 
 def test_static_js_serving():
     resp = client.get("/static/app.js")
@@ -26,3 +31,8 @@ def test_static_js_serving():
     assert "renderTopologyGraph" in js
     assert "selectTopologyCommit" in js
     assert "openTopologyModalForCandidate" in js
+    assert "initAuthSession" in js
+    assert "loginAsEmployer" in js
+    assert "loginAsCandidate" in js
+    assert "logoutSession" in js
+    assert "broadcastSyncEvent" in js
