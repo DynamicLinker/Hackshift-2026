@@ -16,7 +16,7 @@ let cachedApplications = {};  // appId -> full application object for instant cl
 let cachedRepos        = {};  // repoName -> repo object for instant click modals
 
 document.addEventListener("DOMContentLoaded", async () => {
-  await runCandidateAudit();
+  await runCandidateAudit(true);
   loadEmployerBootstrap();
   loadCandidateJobs();
 });
@@ -85,14 +85,14 @@ function switchTab(tab) {
 function setCandidateDemo(username) {
   switchTab("candidate");
   document.getElementById("input-github-user").value = username;
-  runCandidateAudit();
+  runCandidateAudit(false);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  CANDIDATE: AUDIT & CLONE
 // ─────────────────────────────────────────────────────────────────────────────
 
-async function runCandidateAudit() {
+async function runCandidateAudit(isInitial = false) {
   const rawInput = document.getElementById("input-github-user").value.trim();
   const geminiKey = document.getElementById("input-gemini-key")?.value.trim() || null;
 
@@ -105,6 +105,39 @@ async function runCandidateAudit() {
   btn.disabled = true;
   btn.innerHTML = `<i data-lucide="loader-2" class="w-3.5 h-3.5 animate-spin"></i><span>Analyzing Repository…</span>`;
   lucide.createIcons();
+
+  const telemetrySection = document.getElementById("section-audit-telemetry");
+  const telemetryLogs = document.getElementById("telemetry-logs");
+
+  if (!isInitial && telemetrySection && telemetryLogs) {
+    telemetrySection.classList.remove("hidden");
+    telemetryLogs.innerHTML = `
+      <div class="flex items-center gap-2 text-slate-400">
+        <i data-lucide="loader-2" class="w-3 h-3 animate-spin text-blue-400"></i>
+        <span>[1/3] Cloning remote Git tree & parsing commit graph...</span>
+      </div>
+    `;
+    lucide.createIcons();
+    await new Promise(r => setTimeout(r, 280));
+
+    telemetryLogs.innerHTML += `
+      <div class="flex items-center gap-2 text-slate-400">
+        <i data-lucide="loader-2" class="w-3 h-3 animate-spin text-blue-400"></i>
+        <span>[2/3] Analyzing commit distribution & commit topology across branches...</span>
+      </div>
+    `;
+    lucide.createIcons();
+    await new Promise(r => setTimeout(r, 320));
+
+    telemetryLogs.innerHTML += `
+      <div class="flex items-center gap-2 text-slate-400">
+        <i data-lucide="loader-2" class="w-3 h-3 animate-spin text-blue-400"></i>
+        <span>[3/3] Authenticating author signatures & verifying human development cadence...</span>
+      </div>
+    `;
+    lucide.createIcons();
+    await new Promise(r => setTimeout(r, 260));
+  }
 
   const isRepoUrl = rawInput.includes("/") || rawInput.startsWith("http");
   const payload = {
@@ -128,12 +161,30 @@ async function runCandidateAudit() {
     const data = await res.json();
     currentCandidate = data;
     renderAuditResults(data);
-    showToast(`Audit complete: ${data.git_provenance_score}% provenance`, "success");
+
+    if (telemetryLogs) {
+      const isHuman = data.commit_topology_status === "verified_human";
+      telemetryLogs.innerHTML = `
+        <div class="flex items-center gap-2 ${isHuman ? 'text-emerald-400' : 'text-rose-400'} font-semibold pt-0.5">
+          <i data-lucide="${isHuman ? 'check-circle' : 'alert-triangle'}" class="w-3.5 h-3.5"></i>
+          <span>${isHuman ? `✓ Complete: Identity verified for @${data.github_username}. Select an opening below to test & apply.` : `⚠ Flagged: 1-commit bulk dump detected for @${data.github_username}. Unscreened cold queue routing.`}</span>
+        </div>
+      `;
+      lucide.createIcons();
+    }
+
+    if (!isInitial) {
+      if (data.commit_topology_status === "verified_human") {
+        showToast(`Identity verified: ${data.full_name} (@${data.github_username}). Select an opening below to test & apply.`, "success");
+      } else {
+        showToast(`Flagged: @${data.github_username} routed to unscreened cold queue due to single bulk dump.`, "warn");
+      }
+    }
   } catch (err) {
     showToast("Audit error: " + err.message, "error");
   } finally {
     btn.disabled = false;
-    btn.innerHTML = `<i data-lucide="git-branch" class="w-3.5 h-3.5"></i><span>Clone & Analyze Repo</span>`;
+    btn.innerHTML = `<i data-lucide="git-branch" class="w-3.5 h-3.5"></i><span>Clone & Audit</span>`;
     lucide.createIcons();
   }
 }
@@ -153,40 +204,46 @@ function renderAuditResults(c) {
   const ownBadge = document.getElementById("audit-ownership-badge");
   if (ownBadge) {
     if (c.is_bot || (c.commit_topology_status && c.commit_topology_status.includes("flagged"))) {
-      ownBadge.className = "mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-rose-50 text-rose-700 border border-rose-200";
-      ownBadge.innerHTML = `<i data-lucide="alert-triangle" class="w-3 h-3 text-rose-600"></i><span>Flagged Contributor (${c.author_match_rate || 15}% author match)</span>`;
+      ownBadge.className = "inline-flex items-center gap-1 px-2.5 py-0.5 rounded text-[11px] font-semibold bg-rose-50 text-rose-700 border border-rose-200";
+      ownBadge.innerHTML = `<i data-lucide="alert-triangle" class="w-3.5 h-3.5 text-rose-600"></i><span>Flagged Contributor (${c.author_match_rate || 15}% author match)</span>`;
     } else {
-      ownBadge.className = "mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200";
-      ownBadge.innerHTML = `<i data-lucide="check-circle-2" class="w-3 h-3 text-emerald-600"></i><span>Verified Contributor (${c.author_match_rate || 100}% author match)</span>`;
+      ownBadge.className = "inline-flex items-center gap-1 px-2.5 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200";
+      ownBadge.innerHTML = `<i data-lucide="check-circle-2" class="w-3.5 h-3.5 text-emerald-600"></i><span>Verified Contributor (${c.author_match_rate || 100}% author match)</span>`;
     }
   }
 
-  // Score
+  // Topology Index (Maintained for ID compatibility, displayed cleanly)
   const scoreEl = document.getElementById("audit-provenance-score");
-  scoreEl.textContent = `${c.git_provenance_score}%`;
-  scoreEl.className = c.git_provenance_score >= 70 ? "text-2xl font-black text-emerald-600" : "text-2xl font-black text-rose-600";
+  if (scoreEl) {
+    scoreEl.textContent = `${c.git_provenance_score}%`;
+    scoreEl.className = c.git_provenance_score >= 70 ? "font-bold text-emerald-700 font-mono" : "font-bold text-rose-700 font-mono";
+  }
 
   // Topology Badge
   const topoBadge = document.getElementById("audit-topology-badge");
-  if (c.commit_topology_status === "verified_human") {
-    topoBadge.className = "mt-1 inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-semibold w-fit";
-    topoBadge.innerHTML = `<i data-lucide="check-circle" class="w-3 h-3 text-emerald-600"></i><span>Verified Human Developer</span>`;
-  } else {
-    topoBadge.className = "mt-1 inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-rose-50 text-rose-700 border border-rose-200 text-xs font-semibold w-fit";
-    topoBadge.innerHTML = `<i data-lucide="alert-triangle" class="w-3 h-3 text-rose-600"></i><span>Flagged: 1-Commit Bulk Dump</span>`;
+  if (topoBadge) {
+    if (c.commit_topology_status === "verified_human") {
+      topoBadge.className = "inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-semibold w-fit";
+      topoBadge.innerHTML = `<i data-lucide="git-commit" class="w-3.5 h-3.5 text-emerald-600"></i><span>Progressive Commit Cadence</span>`;
+    } else {
+      topoBadge.className = "inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded bg-rose-50 text-rose-700 border border-rose-200 text-xs font-semibold w-fit";
+      topoBadge.innerHTML = `<i data-lucide="alert-triangle" class="w-3.5 h-3.5 text-rose-600"></i><span>Flagged: 1-Commit Bulk Dump</span>`;
+    }
   }
 
   // Qualification
   const qualBadge = document.getElementById("audit-qualification-badge");
   const startBtn  = document.getElementById("btn-start-challenge");
-  if (c.fast_track_qualified) {
-    qualBadge.className = "mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200 text-xs font-semibold w-fit";
-    qualBadge.innerHTML = `<i data-lucide="zap" class="w-3 h-3 text-blue-600"></i><span>Fast-Track Qualified</span>`;
-    startBtn.classList.remove("hidden");
-  } else {
-    qualBadge.className = "mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded bg-slate-100 text-slate-500 border border-slate-200 text-xs font-semibold w-fit";
-    qualBadge.innerHTML = `<i data-lucide="shield-x" class="w-3 h-3"></i><span>Cold Queue Only</span>`;
-    startBtn.classList.add("hidden");
+  if (qualBadge) {
+    if (c.fast_track_qualified) {
+      qualBadge.className = "inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200";
+      qualBadge.innerHTML = `<i data-lucide="check-check" class="w-3.5 h-3.5 text-emerald-600"></i><span>Eligible for Fast-Track Testing</span>`;
+      if (startBtn) startBtn.classList.remove("hidden");
+    } else {
+      qualBadge.className = "inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-800 border border-rose-200";
+      qualBadge.innerHTML = `<i data-lucide="shield-x" class="w-3.5 h-3.5 text-rose-600"></i><span>Flagged (Cold Queue Only)</span>`;
+      if (startBtn) startBtn.classList.add("hidden");
+    }
   }
 
   // Update Status Board Title to Candidate's Name
