@@ -160,6 +160,20 @@
           </div>
         </div>
 
+        <!-- Live AST Telemetry Strip (Visible during inspection) -->
+        <div id="section-audit-telemetry" class="hidden rounded-xl bg-slate-900 border border-slate-800 p-3.5 text-xs font-mono text-slate-300 space-y-1.5 slide-in">
+          <div class="flex items-center justify-between text-slate-400 border-b border-slate-800 pb-1.5 text-[11px]">
+            <span class="flex items-center gap-1.5 text-emerald-400 font-bold">
+              <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+              <span>Git Topology Inspection Engine</span>
+            </span>
+            <span class="text-slate-500 font-mono">AST Verifier Active</span>
+          </div>
+          <div id="telemetry-logs" class="space-y-1 pt-0.5 text-[11px] text-slate-300">
+            <!-- Stepped real-time verification messages -->
+          </div>
+        </div>
+
       </div>
 
       <!-- Candidate Verified Dossier Card (Visible once audited) -->
@@ -191,22 +205,34 @@
             </div>
           </div>
 
-          <!-- Provenance Score Dial & Trigger -->
-          <div class="flex items-center gap-4 self-end md:self-center">
-            <div class="text-right">
-              <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Provenance Score</span>
-              <div class="flex items-baseline gap-1 justify-end">
-                <span id="audit-provenance-score" class="text-3xl font-black text-emerald-600 font-mono">—</span>
-                <span class="text-xs text-slate-400 font-mono">/ 100</span>
+          <!-- Verification Status & Role Action (No premature application score) -->
+          <div class="flex flex-col sm:flex-row items-start sm:items-center gap-4 self-stretch md:self-auto justify-between md:justify-end">
+            <div class="rounded-xl border border-emerald-200 bg-emerald-50/70 p-3 text-left sm:text-right space-y-0.5">
+              <div class="flex items-center sm:justify-end gap-1.5">
+                <i data-lucide="shield-check" class="w-4 h-4 text-emerald-600"></i>
+                <span class="text-xs font-bold text-emerald-950">Identity Verified</span>
+              </div>
+              <div class="text-[11px] text-emerald-800 font-medium">3 Repositories Inspected</div>
+              <div class="text-[10px] text-slate-500 font-mono">
+                Authenticity: <span id="audit-provenance-score" class="font-bold text-emerald-700">94.5%</span> (Ready to Test)
               </div>
             </div>
             <button id="btn-start-challenge" onclick="scrollToJobOpenings()"
-              class="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs transition flex items-center gap-1.5 shadow-sm active:scale-95">
-              <span>Choose Role to Apply</span>
+              class="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs transition flex items-center justify-center gap-1.5 shadow-sm active:scale-95">
+              <span>Select Role to Test & Apply</span>
               <i data-lucide="arrow-down" class="w-3.5 h-3.5"></i>
             </button>
           </div>
 
+        </div>
+
+        <!-- Next Step Guidance Callout -->
+        <div class="rounded-xl bg-slate-50 border border-slate-200/90 p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+          <div class="flex items-center gap-2 text-slate-700">
+            <i data-lucide="info" class="w-4 h-4 text-blue-600 shrink-0"></i>
+            <span><strong>How Proof Scores Work:</strong> Your official competence score is awarded when you complete the 5-minute assessment for a specific role below.</span>
+          </div>
+          <span class="text-[11px] text-slate-500 shrink-0 font-medium">Guaranteed 72h Turnaround</span>
         </div>
 
         <!-- Optional Gemini Banner -->
