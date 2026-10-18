@@ -138,6 +138,16 @@ ALTER TABLE public.assessments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.applications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.test_users ENABLE ROW LEVEL SECURITY;
 
+-- Table & Schema Grants for Supabase API Roles
+GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
+GRANT ALL ON ALL TABLES IN SCHEMA public TO anon, authenticated, service_role;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated, service_role;
+GRANT ALL ON ALL ROUTINES IN SCHEMA public TO anon, authenticated, service_role;
+
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO anon, authenticated, service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO anon, authenticated, service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON ROUTINES TO anon, authenticated, service_role;
+
 CREATE POLICY "Public read for companies" ON public.companies FOR SELECT USING (true);
 CREATE POLICY "Public read for active jobs" ON public.jobs FOR SELECT USING (true);
 CREATE POLICY "Public insert for jobs" ON public.jobs FOR INSERT WITH CHECK (true);
