@@ -5,7 +5,6 @@
 > **Live Deployed Application**: [https://hackshift-2026.onrender.com/](https://hackshift-2026.onrender.com/)
 
 [![Live Deployment](https://img.shields.io/badge/Live%20Demo-hackshift--2026.onrender.com-brightgreen?style=for-the-badge&logo=render)](https://hackshift-2026.onrender.com/)
-[![Tests](https://img.shields.io/badge/Pytest-46%20Passed-emerald?style=for-the-badge&logo=pytest)](https://hackshift-2026.onrender.com/)
 [![Architecture](https://img.shields.io/badge/Architecture-FastAPI%20%2B%20Vanilla%20SPA-blue?style=for-the-badge&logo=fastapi)](https://hackshift-2026.onrender.com/)
 [![SLA Standard](https://img.shields.io/badge/Anti--Ghosting-72h%20SLA%20Enforced-amber?style=for-the-badge)](https://hackshift-2026.onrender.com/)
 
@@ -135,12 +134,4 @@ python run.py
 ```
 Open your browser at **`http://localhost:8000`**.
 
-### Run Test Suite & Demo Verification
-```bash
-# Run 46 automated unit and integration tests
-pytest tests/
-
-# Execute the 7-step live stage verification script
-python scripts/verify_demo.py
-```
 
