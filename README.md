@@ -135,3 +135,9 @@ python run.py
 Open your browser at **`http://localhost:8000`**.
 
 
+---
+
+_Developed by Ajitesh Chaurasia_
+_for HackShift @ IIIT-D_
+
+
