@@ -60,11 +60,21 @@ async def login(payload: LoginRequest):
                 "total_openings": len([j for j in db.list_jobs() if j.company_id == company.id]),
             }
         else:
-            github_username = auth_user.get("github_username") or "iiitd-dev"
-            candidate = db.get_candidate(f"cand_{github_username}") or db.get_candidate(github_username)
-            if not candidate or not candidate.topology_graph:
-                candidate = await analyze_github_user(github_username)
-                db.save_candidate(candidate)
+            raw_input = (payload.identifier or "").strip()
+            if not raw_input:
+                raw_input = auth_user.get("github_username") or "iiitd-dev"
+
+            is_repo_url = "/" in raw_input or raw_input.startswith("http")
+            if is_repo_url:
+                repo_url = raw_input
+                parts = raw_input.rstrip("/").split("/")
+                clean_user = parts[-2] if len(parts) >= 2 and parts[-2] not in ["github.com", "http:", "https:"] else "developer"
+            else:
+                repo_url = None
+                clean_user = raw_input.lstrip("@")
+
+            candidate = await analyze_github_user(clean_user, repo_url=repo_url)
+            db.save_candidate(candidate)
 
             return {
                 "status": "authenticated",
@@ -73,6 +83,8 @@ async def login(payload: LoginRequest):
                 "email": auth_user["email"],
                 "candidate_id": candidate.id,
                 "github_username": candidate.github_username,
+                "audit_target": raw_input,
+                "repo_url": repo_url,
                 "full_name": auth_user.get("display_name") or candidate.full_name,
                 "avatar_url": candidate.avatar_url,
                 "git_provenance_score": candidate.git_provenance_score,
@@ -86,12 +98,13 @@ async def login(payload: LoginRequest):
         raise HTTPException(status_code=400, detail="Must provide either email/password or role/identifier.")
 
     role = payload.role.lower().strip()
-    identifier = payload.identifier.strip().lstrip("@")
+    identifier = payload.identifier.strip()
 
     if role == "employer":
-        company = db.get_company(identifier) or db.get_company("comp-acme")
+        comp_id = identifier.lstrip("@")
+        company = db.get_company(comp_id) or db.get_company("comp-acme")
         if not company:
-            raise HTTPException(status_code=404, detail=f"Company '{identifier}' not found.")
+            raise HTTPException(status_code=404, detail=f"Company '{comp_id}' not found.")
         return {
             "status": "authenticated",
             "role": "employer",
@@ -104,16 +117,26 @@ async def login(payload: LoginRequest):
         }
 
     elif role == "candidate":
-        candidate = db.get_candidate(f"cand_{identifier}") or db.get_candidate(identifier)
-        if not candidate or not candidate.topology_graph:
-            candidate = await analyze_github_user(identifier)
-            db.save_candidate(candidate)
+        raw_input = identifier
+        is_repo_url = "/" in raw_input or raw_input.startswith("http")
+        if is_repo_url:
+            repo_url = raw_input
+            parts = raw_input.rstrip("/").split("/")
+            clean_user = parts[-2] if len(parts) >= 2 and parts[-2] not in ["github.com", "http:", "https:"] else "developer"
+        else:
+            repo_url = None
+            clean_user = raw_input.lstrip("@")
+
+        candidate = await analyze_github_user(clean_user, repo_url=repo_url)
+        db.save_candidate(candidate)
 
         return {
             "status": "authenticated",
             "role": "candidate",
             "candidate_id": candidate.id,
             "github_username": candidate.github_username,
+            "audit_target": raw_input,
+            "repo_url": repo_url,
             "full_name": candidate.full_name,
             "avatar_url": candidate.avatar_url,
             "git_provenance_score": candidate.git_provenance_score,

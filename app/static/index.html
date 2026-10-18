@@ -547,13 +547,18 @@
               </div>
 
               <div>
-                <label class="block text-xs font-bold text-[#DDF2F0] mb-1">GitHub Username / Handle:</label>
+                <label class="block text-xs font-bold text-[#DDF2F0] mb-1">GitHub Repository URL or Username:</label>
                 <div class="relative">
-                  <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#1E8C86] font-mono text-xs font-bold">@</span>
-                  <input id="login-candidate-user" type="text" value="iiitd-dev"
-                    placeholder="GitHub username"
+                  <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-[#1E8C86] font-mono text-xs font-bold">
+                    <i data-lucide="git-branch" class="w-3.5 h-3.5 text-[#1E8C86]"></i>
+                  </span>
+                  <input id="login-candidate-user" type="text" value="https://github.com/iiitd-dev/delhi-transit-stream"
+                    placeholder="e.g. https://github.com/user/repo or @username"
                     class="w-full pl-8 pr-3.5 py-2.5 rounded-xl bg-[#FFF8E7] border-2 border-[#3CC4BD] text-xs font-bold font-mono text-[#143836] focus:border-[#FFD23F] focus:outline-none shadow-inner">
                 </div>
+                <p class="text-[10px] text-[#78A8A5] mt-1 font-mono">
+                  Whatever URL you enter will be cloned and evaluated in real-time.
+                </p>
               </div>
             </div>
 
@@ -781,11 +786,11 @@
             <div class="rounded-xl border border-emerald-200 bg-emerald-50/70 p-3 text-left sm:text-right space-y-0.5">
               <div class="flex items-center sm:justify-end gap-1.5">
                 <i data-lucide="shield-check" class="w-4 h-4 text-emerald-600"></i>
-                <span class="text-xs font-bold text-emerald-950">Identity Verified</span>
+                <span id="audit-identity-status" class="text-xs font-bold text-emerald-950">Identity Verified</span>
               </div>
-              <div class="text-[11px] text-emerald-800 font-medium">3 Repositories Inspected</div>
+              <div id="audit-repos-inspected-text" class="text-[11px] text-emerald-800 font-medium">Inspecting Repository...</div>
               <div class="text-[10px] text-slate-500 font-mono">
-                Authenticity: <span id="audit-provenance-score" class="font-bold text-emerald-700">94.5%</span> (Ready to Test)
+                Authenticity: <span id="audit-provenance-score" class="font-bold text-emerald-700">—</span> (Ready to Test)
               </div>
             </div>
             <div class="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto">
@@ -857,19 +862,19 @@
           <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs font-mono">
             <div class="bg-slate-950/70 rounded-lg p-2.5 border border-slate-800/80">
               <span class="text-[10px] text-slate-400 block uppercase">Branch Complexity</span>
-              <span id="topo-metric-branches" class="font-bold text-slate-200 text-xs sm:text-sm">3 Branches · 4 Merges</span>
+              <span id="topo-metric-branches" class="font-bold text-slate-200 text-xs sm:text-sm">—</span>
             </div>
             <div class="bg-slate-950/70 rounded-lg p-2.5 border border-slate-800/80">
               <span class="text-[10px] text-slate-400 block uppercase">Development Span</span>
-              <span id="topo-metric-span" class="font-bold text-slate-200 text-xs sm:text-sm">38 Days (Iterative)</span>
+              <span id="topo-metric-span" class="font-bold text-slate-200 text-xs sm:text-sm">—</span>
             </div>
             <div class="bg-slate-950/70 rounded-lg p-2.5 border border-slate-800/80">
               <span class="text-[10px] text-slate-400 block uppercase">Author Purity</span>
-              <span id="topo-metric-author" class="font-bold text-emerald-400 text-xs sm:text-sm">100% GPG / SSH Match</span>
+              <span id="topo-metric-author" class="font-bold text-emerald-400 text-xs sm:text-sm">—</span>
             </div>
             <div class="bg-slate-950/70 rounded-lg p-2.5 border border-slate-800/80">
               <span class="text-[10px] text-slate-400 block uppercase">Cadence Health</span>
-              <span id="topo-metric-cadence" class="font-bold text-blue-400 text-xs sm:text-sm">Normal (1.2/day)</span>
+              <span id="topo-metric-cadence" class="font-bold text-blue-400 text-xs sm:text-sm">—</span>
             </div>
           </div>
 

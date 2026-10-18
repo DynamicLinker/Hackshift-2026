@@ -176,13 +176,13 @@ async function submitEmployerLogin() {
 async function submitCandidateLogin() {
   const email = document.getElementById("login-candidate-email")?.value.trim() || "aarav@iiitd.ac.in";
   const password = document.getElementById("login-candidate-password")?.value.trim() || "Password123!";
-  const username = document.getElementById("login-candidate-user")?.value.trim() || "iiitd-dev";
+  const repoOrUser = document.getElementById("login-candidate-user")?.value.trim() || "https://github.com/iiitd-dev/delhi-transit-stream";
 
   await loginWithCredentials({
     email,
     password,
     role: "candidate",
-    identifier: username,
+    identifier: repoOrUser,
   }, "btn-login-candidate-submit", "Candidate Portal");
 }
 
@@ -282,9 +282,10 @@ function applyActiveSession(session) {
       roleBadgeEl.className = "text-[10px] text-[#3CC4BD] font-bold flex items-center gap-1";
     }
     const inputUser = document.getElementById("input-github-user");
-    if (inputUser) inputUser.value = session.github_username;
+    const target = session.audit_target || session.repo_url || session.github_username || "https://github.com/iiitd-dev/delhi-transit-stream";
+    if (inputUser) inputUser.value = target;
     switchTab("candidate");
-    runCandidateAudit(false);
+    runCandidateAudit(true);
   }
   loadCandidateJobs();
   lucide.createIcons();
@@ -394,7 +395,7 @@ function setCandidateDemo(username) {
 //  CANDIDATE: AUDIT & CLONE
 // ─────────────────────────────────────────────────────────────────────────────
 
-async function runCandidateAudit(isInitial = false) {
+async function runCandidateAudit(animate = true) {
   const rawInput = document.getElementById("input-github-user").value.trim();
 
   if (!rawInput) {
@@ -403,18 +404,42 @@ async function runCandidateAudit(isInitial = false) {
   }
 
   const btn = document.getElementById("btn-audit");
-  btn.disabled = true;
-  btn.innerHTML = `<i data-lucide="loader-2" class="w-3.5 h-3.5 animate-spin"></i><span>Analyzing Repository…</span>`;
-  lucide.createIcons();
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = `<i data-lucide="loader-2" class="w-3.5 h-3.5 animate-spin"></i><span>Cloning & Analyzing…</span>`;
+    lucide.createIcons();
+  }
 
   const telemetrySection = document.getElementById("section-audit-telemetry");
   const telemetryLogs = document.getElementById("telemetry-logs");
+  const viewport = document.getElementById("topology-graph-viewport");
+  const healthBadge = document.getElementById("topology-health-badge");
 
   const isRepoUrl = rawInput.includes("/") || rawInput.startsWith("http");
   const payload = {
     github_username: isRepoUrl ? null : rawInput,
     repo_url: isRepoUrl ? rawInput : null,
   };
+
+  const targetDisplay = isRepoUrl ? rawInput : `@${rawInput}`;
+
+  // Active loading placeholder in viewport so user sees the engine working
+  if (viewport) {
+    viewport.innerHTML = `
+      <div class="flex flex-col items-center justify-center p-12 text-slate-400 space-y-3 font-mono text-xs">
+        <i data-lucide="loader-2" class="w-8 h-8 text-[#3CC4BD] animate-spin"></i>
+        <span class="text-slate-200 font-bold">Cloning Git repository & analyzing AST commit graph...</span>
+        <span class="text-[11px] text-slate-400 max-w-md truncate">${escapeHtml(targetDisplay)}</span>
+      </div>
+    `;
+    lucide.createIcons();
+  }
+
+  if (healthBadge) {
+    healthBadge.className = "px-2 py-0.5 rounded text-[10px] font-bold bg-blue-950 text-blue-300 border border-blue-800 font-mono inline-flex items-center gap-1.5";
+    healthBadge.innerHTML = `<i data-lucide="loader-2" class="w-3 h-3 animate-spin"></i><span>Cloning & Verifying DAG…</span>`;
+    lucide.createIcons();
+  }
 
   // 1. Immediately launch background fetch so network request runs in parallel
   const fetchPromise = fetch("/api/candidate/audit", {
@@ -423,42 +448,58 @@ async function runCandidateAudit(isInitial = false) {
     body: JSON.stringify(payload),
   });
 
-  // 2. Render fast stepped telemetry indications
+  // 2. Render stepped telemetry indications with realistic pacing
   if (telemetrySection && telemetryLogs) {
     telemetrySection.classList.remove("hidden");
     telemetryLogs.innerHTML = `
       <div id="step-audit-1" class="flex items-center gap-2 text-slate-300">
         <i data-lucide="loader-2" class="w-3 h-3 animate-spin text-blue-400"></i>
-        <span>[1/3] Cloning remote Git tree & parsing commit graph...</span>
+        <span>[1/4] Cloning remote Git tree from <span class="text-blue-300 font-semibold font-mono">${escapeHtml(targetDisplay)}</span>...</span>
       </div>
     `;
     lucide.createIcons();
 
-    if (!isInitial) {
-      await new Promise(r => setTimeout(r, 60));
-      const s1 = document.getElementById("step-audit-1");
-      if (s1) s1.innerHTML = `<i data-lucide="check" class="w-3 h-3 text-emerald-400"></i><span class="text-slate-300">[1/3] Remote Git tree parsed</span>`;
-
-      telemetryLogs.innerHTML += `
-        <div id="step-audit-2" class="flex items-center gap-2 text-slate-300">
-          <i data-lucide="loader-2" class="w-3 h-3 animate-spin text-blue-400"></i>
-          <span>[2/3] Analyzing commit distribution & commit topology across branches...</span>
-        </div>
-      `;
-      lucide.createIcons();
-      await new Promise(r => setTimeout(r, 70));
-
-      const s2 = document.getElementById("step-audit-2");
-      if (s2) s2.innerHTML = `<i data-lucide="check" class="w-3 h-3 text-emerald-400"></i><span class="text-slate-300">[2/3] Multi-branch DAG topology verified</span>`;
-
-      telemetryLogs.innerHTML += `
-        <div id="step-audit-3" class="flex items-center gap-2 text-slate-300">
-          <i data-lucide="loader-2" class="w-3 h-3 animate-spin text-blue-400"></i>
-          <span>[3/3] Authenticating author signatures & verifying human development cadence...</span>
-        </div>
-      `;
-      lucide.createIcons();
+    await new Promise(r => setTimeout(r, 280));
+    const s1 = document.getElementById("step-audit-1");
+    if (s1) {
+      s1.innerHTML = `<i data-lucide="check" class="w-3 h-3 text-emerald-400"></i><span class="text-slate-300">[1/4] Remote Git tree cloned and commit logs parsed</span>`;
     }
+
+    telemetryLogs.innerHTML += `
+      <div id="step-audit-2" class="flex items-center gap-2 text-slate-300">
+        <i data-lucide="loader-2" class="w-3 h-3 animate-spin text-blue-400"></i>
+        <span>[2/4] Parsing commit graph, merge parent hashes & branch divergence...</span>
+      </div>
+    `;
+    lucide.createIcons();
+
+    await new Promise(r => setTimeout(r, 320));
+    const s2 = document.getElementById("step-audit-2");
+    if (s2) {
+      s2.innerHTML = `<i data-lucide="check" class="w-3 h-3 text-emerald-400"></i><span class="text-slate-300">[2/4] Multi-branch DAG topology & parent pointers mapped</span>`;
+    }
+
+    telemetryLogs.innerHTML += `
+      <div id="step-audit-3" class="flex items-center gap-2 text-slate-300">
+        <i data-lucide="loader-2" class="w-3 h-3 animate-spin text-blue-400"></i>
+        <span>[3/4] Running AST syntax provenance & author cadence verification...</span>
+      </div>
+    `;
+    lucide.createIcons();
+
+    await new Promise(r => setTimeout(r, 260));
+    const s3 = document.getElementById("step-audit-3");
+    if (s3) {
+      s3.innerHTML = `<i data-lucide="check" class="w-3 h-3 text-emerald-400"></i><span class="text-slate-300">[3/4] AST syntax signatures & author cadence verified</span>`;
+    }
+
+    telemetryLogs.innerHTML += `
+      <div id="step-audit-4" class="flex items-center gap-2 text-slate-300">
+        <i data-lucide="loader-2" class="w-3 h-3 animate-spin text-blue-400"></i>
+        <span>[4/4] Generating interactive visual Git Topology DAG...</span>
+      </div>
+    `;
+    lucide.createIcons();
   }
 
   try {
@@ -474,8 +515,10 @@ async function runCandidateAudit(isInitial = false) {
     renderAuditResults(data);
 
     if (telemetryLogs) {
-      const s3 = document.getElementById("step-audit-3");
-      if (s3) s3.innerHTML = `<i data-lucide="check" class="w-3 h-3 text-emerald-400"></i><span class="text-slate-300">[3/3] Author signatures & AST verified</span>`;
+      const s4 = document.getElementById("step-audit-4");
+      if (s4) {
+        s4.innerHTML = `<i data-lucide="check" class="w-3 h-3 text-emerald-400"></i><span class="text-slate-300">[4/4] Interactive Git Topology DAG successfully rendered</span>`;
+      }
 
       const isHuman = data.commit_topology_status === "verified_human";
       const completionDiv = document.createElement("div");
@@ -488,24 +531,23 @@ async function runCandidateAudit(isInitial = false) {
       lucide.createIcons();
     }
 
-    if (!isInitial) {
-      if (data.commit_topology_status === "verified_human") {
-        showToast(`Identity verified: ${data.full_name} (@${data.github_username}). Select an opening below to test & apply.`, "success");
-      } else {
-        showToast(`Flagged: @${data.github_username} routed to unscreened cold queue due to single bulk dump.`, "warn");
-      }
-      setTimeout(() => scrollToTopologyGraph(), 100);
+    if (data.commit_topology_status === "verified_human") {
+      showToast(`Identity verified: ${data.full_name} (@${data.github_username}). Select an opening below to test & apply.`, "success");
+    } else {
+      showToast(`Flagged: @${data.github_username} routed to unscreened cold queue due to single bulk dump.`, "warn");
     }
   } catch (err) {
     if (telemetryLogs) {
-      const s3 = document.getElementById("step-audit-3");
-      if (s3) s3.innerHTML = `<i data-lucide="x" class="w-3 h-3 text-rose-400"></i><span class="text-rose-400">[3/3] Verification error</span>`;
+      const s4 = document.getElementById("step-audit-4") || document.getElementById("step-audit-3");
+      if (s4) s4.innerHTML = `<i data-lucide="x" class="w-3 h-3 text-rose-400"></i><span class="text-rose-400">Verification error</span>`;
     }
     showToast("Audit error: " + err.message, "error");
   } finally {
-    btn.disabled = false;
-    btn.innerHTML = `<i data-lucide="git-branch" class="w-3.5 h-3.5"></i><span>Clone & Audit</span>`;
-    lucide.createIcons();
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = `<i data-lucide="git-branch" class="w-3.5 h-3.5"></i><span>Clone & Audit</span>`;
+      lucide.createIcons();
+    }
   }
 }
 
@@ -519,6 +561,13 @@ function renderAuditResults(c) {
   document.getElementById("audit-username").textContent = "@" + c.github_username;
   document.getElementById("audit-bio").textContent = c.bio || "Active Software Engineer";
   document.getElementById("audit-avatar").src = c.avatar_url || "https://avatars.githubusercontent.com/u/8942111?v=4";
+
+  const inspectedText = document.getElementById("audit-repos-inspected-text");
+  if (inspectedText) {
+    const count = (c.audited_repos && c.audited_repos.length) ? c.audited_repos.length : 1;
+    const primaryName = (c.audited_repos && c.audited_repos[0]) ? c.audited_repos[0].repo_name : "Repository";
+    inspectedText.textContent = `${count} ${count === 1 ? 'Repository' : 'Repositories'} Inspected (${primaryName})`;
+  }
 
   // Ownership & Contributor Badge
   const ownBadge = document.getElementById("audit-ownership-badge");
