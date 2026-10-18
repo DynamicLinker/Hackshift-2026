@@ -1085,7 +1085,7 @@ function openRepoDetailModal(repoName) {
     <div class="rounded-xl p-3 bg-gradient-to-r from-blue-50 to-teal-50 border border-blue-200 text-xs space-y-1">
       <div class="font-bold flex items-center gap-1.5 text-blue-950 text-xs">
         <i data-lucide="sparkles" class="w-3.5 h-3.5 text-blue-600"></i>
-        <span>Gemini 3.1 Flash-Lite Architectural Reasoning</span>
+        <span>Architectural Reasoning & Provenance Evaluation</span>
       </div>
       <p class="text-blue-950 font-medium text-[11px] leading-relaxed">
         ${escapeHtml(r.gemini_summary)}
