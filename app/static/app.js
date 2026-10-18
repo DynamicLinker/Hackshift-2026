@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────────
-//  ProofHired Client Orchestrator  |  Clean Light-Theme SPA
+//  ProofHired Client Orchestrator  |  Clean Light-Theme SPA & Dual-Tab Sync
 // ─────────────────────────────────────────────────────────────────────────────
 
 let currentCandidate   = null;
@@ -14,12 +14,260 @@ let secondsRemaining   = 300;
 let lastCreatedJobId   = null;
 let cachedApplications = {};  // appId -> full application object for instant click modals
 let cachedRepos        = {};  // repoName -> repo object for instant click modals
+let currentSession     = null; // { role: 'employer'|'candidate', ... }
 
+// ── Cross-Tab Real-Time Sync Channel ─────────────────────────────────────────
+const syncChannel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('proofhired_sync') : null;
+if (syncChannel) {
+  syncChannel.onmessage = (event) => {
+    handleSyncEvent(event.data);
+  };
+}
+
+function broadcastSyncEvent(eventData) {
+  if (syncChannel) {
+    try {
+      syncChannel.postMessage(eventData);
+    } catch (e) {
+      console.warn("BroadcastChannel error:", e);
+    }
+  }
+}
+
+function handleSyncEvent(event) {
+  if (!event || !event.type) return;
+  console.log("Cross-tab sync message received:", event);
+
+  if (event.type === "JOB_POSTED") {
+    lastCreatedJobId = event.job?.id;
+    loadCandidateJobs();
+    if (currentSession?.role === "candidate") {
+      showToast(`🎯 New Opening Posted: "${event.job?.title}" at ${event.job?.company_name}! You are an eligible match.`, "success");
+    }
+  } else if (event.type === "APPLICATION_SUBMITTED") {
+    loadEmployerCockpit();
+    if (currentSession?.role === "employer") {
+      showToast(`⚡ New Fast-Track candidate submission from ${event.candidateName || "Candidate"}! Vaulted to #1.`, "success");
+    }
+  } else if (event.type === "APPLICATION_STATUS_CHANGED") {
+    loadCandidateStatusBoard();
+    if (currentSession?.role === "candidate") {
+      showToast(`🎉 Employer disposition updated: ${event.action || "Status Changed"}!`, "success");
+    }
+  }
+}
+
+// ── Session Initialization & Dual-Portal Gateway ────────────────────────────
 document.addEventListener("DOMContentLoaded", async () => {
-  await runCandidateAudit(true);
-  loadEmployerBootstrap();
-  loadCandidateJobs();
+  await loadEmployerBootstrap();
+  await initAuthSession();
 });
+
+async function initAuthSession() {
+  const params = new URLSearchParams(window.location.search);
+  const paramRole = params.get("role");
+
+  if (paramRole === "employer") {
+    const compId = params.get("company") || "comp-acme";
+    await loginAsEmployer(compId, "Acme Systems Hiring Team", false);
+    return;
+  } else if (paramRole === "candidate") {
+    const user = params.get("user") || "iiitd-dev";
+    await loginAsCandidate(user, false);
+    return;
+  }
+
+  // Check per-tab sessionStorage
+  const stored = sessionStorage.getItem("proofhired_session");
+  if (stored) {
+    try {
+      const sess = JSON.parse(stored);
+      applyActiveSession(sess);
+      return;
+    } catch (e) {
+      console.warn("Invalid stored session", e);
+    }
+  }
+
+  // No active session in this tab -> show gateway
+  showLoginView();
+}
+
+function showLoginView() {
+  document.getElementById("view-login")?.classList.remove("hidden");
+  document.getElementById("view-app")?.classList.add("hidden");
+  lucide.createIcons();
+}
+
+function setLoginCandidateHandle(username, name) {
+  const input = document.getElementById("login-candidate-user");
+  if (input) input.value = username;
+}
+
+async function submitEmployerLogin() {
+  const compId = document.getElementById("login-employer-company")?.value || "comp-acme";
+  const name = document.getElementById("login-employer-name")?.value.trim() || "Acme Systems Hiring Team";
+  await loginAsEmployer(compId, name);
+}
+
+async function submitCandidateLogin() {
+  const username = document.getElementById("login-candidate-user")?.value.trim() || "iiitd-dev";
+  await loginAsCandidate(username);
+}
+
+async function loginAsEmployer(companyId, teamName, showToastMsg = true) {
+  const btn = document.getElementById("btn-login-employer-submit");
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = `<i data-lucide="loader-2" class="w-3.5 h-3.5 animate-spin"></i><span>Entering Cockpit…</span>`;
+    lucide.createIcons();
+  }
+
+  try {
+    const res = await fetch("/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ role: "employer", identifier: companyId, name: teamName }),
+    });
+    if (!res.ok) throw new Error("Employer authentication failed");
+    const data = await res.json();
+    currentSession = data;
+    sessionStorage.setItem("proofhired_session", JSON.stringify(data));
+    applyActiveSession(data);
+    if (showToastMsg) showToast(`Entered as ${data.company_name} Hiring Lead`, "success");
+  } catch (err) {
+    showToast("Login error: " + err.message, "error");
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = `<span>Enter Employer Cockpit</span><i data-lucide="arrow-right" class="w-4 h-4"></i>`;
+      lucide.createIcons();
+    }
+  }
+}
+
+async function loginAsCandidate(username, showToastMsg = true) {
+  const btn = document.getElementById("btn-login-candidate-submit");
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = `<i data-lucide="loader-2" class="w-3.5 h-3.5 animate-spin"></i><span>Entering Portal…</span>`;
+    lucide.createIcons();
+  }
+
+  try {
+    const cleanUser = username.trim().replace(/^@/, "") || "iiitd-dev";
+    const res = await fetch("/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ role: "candidate", identifier: cleanUser }),
+    });
+    if (!res.ok) throw new Error("Candidate authentication failed");
+    const data = await res.json();
+    currentSession = data;
+    sessionStorage.setItem("proofhired_session", JSON.stringify(data));
+    applyActiveSession(data);
+    if (showToastMsg) showToast(`Entered as @${data.github_username} (${data.full_name})`, "success");
+  } catch (err) {
+    showToast("Login error: " + err.message, "error");
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = `<span>Enter Candidate Portal</span><i data-lucide="arrow-right" class="w-4 h-4"></i>`;
+      lucide.createIcons();
+    }
+  }
+}
+
+function logoutSession() {
+  sessionStorage.removeItem("proofhired_session");
+  currentSession = null;
+  if (window.history && window.history.replaceState) {
+    window.history.replaceState({}, document.title, window.location.pathname);
+  }
+  showLoginView();
+  showToast("Logged out of portal session.", "info");
+}
+
+function applyActiveSession(session) {
+  currentSession = session;
+  document.getElementById("view-login")?.classList.add("hidden");
+  document.getElementById("view-app")?.classList.remove("hidden");
+
+  const nameEl = document.getElementById("session-name");
+  const avatarEl = document.getElementById("session-avatar");
+  const roleTextEl = document.getElementById("session-role-text");
+  const roleBadgeEl = document.getElementById("session-role-badge");
+
+  if (session.role === "employer") {
+    if (nameEl) nameEl.textContent = session.company_name || "Employer";
+    if (avatarEl) avatarEl.textContent = (session.company_name || "A")[0].toUpperCase();
+    if (roleTextEl) roleTextEl.textContent = "Employer (72h SLA Active)";
+    if (roleBadgeEl) {
+      roleBadgeEl.className = "text-[10px] text-blue-700 font-medium flex items-center gap-1";
+    }
+    switchTab("employer");
+  } else {
+    if (nameEl) nameEl.textContent = session.full_name || `@${session.github_username}`;
+    if (avatarEl) {
+      if (session.avatar_url) {
+        avatarEl.innerHTML = `<img src="${session.avatar_url}" class="w-full h-full rounded-full object-cover">`;
+      } else {
+        avatarEl.textContent = (session.github_username || "C")[0].toUpperCase();
+      }
+    }
+    if (roleTextEl) roleTextEl.textContent = `@${session.github_username} (Verified Candidate)`;
+    if (roleBadgeEl) {
+      roleBadgeEl.className = "text-[10px] text-emerald-700 font-medium flex items-center gap-1";
+    }
+    const inputUser = document.getElementById("input-github-user");
+    if (inputUser) inputUser.value = session.github_username;
+    switchTab("candidate");
+    runCandidateAudit(false);
+  }
+  loadCandidateJobs();
+  lucide.createIcons();
+}
+
+// ── Background Polling Heartbeat (Sync across tabs / windows) ────────────────
+let lastSeenJobCount = 0;
+let lastSeenFastTrackCount = 0;
+
+async function backgroundSync() {
+  if (document.hidden) return;
+
+  if (currentSession?.role === "candidate") {
+    try {
+      const res = await fetch("/api/employer/jobs");
+      if (res.ok) {
+        const jobs = await res.json();
+        if (lastSeenJobCount > 0 && jobs.length > lastSeenJobCount) {
+          lastCreatedJobId = jobs[jobs.length - 1]?.job?.id;
+          await loadCandidateJobs();
+          showToast("🎯 New job opening detected! Matched with your Git provenance.", "info");
+        }
+        lastSeenJobCount = jobs.length;
+      }
+      await loadCandidateStatusBoard();
+    } catch (e) {}
+  } else if (currentSession?.role === "employer" && selectedJobId) {
+    try {
+      const res = await fetch(`/api/employer/jobs/${selectedJobId}/applications?simulated_hours=${simulatedHours}`);
+      if (res.ok) {
+        const data = await res.json();
+        const ftCount = data.fast_track_queue.length;
+        if (lastSeenFastTrackCount > 0 && ftCount > lastSeenFastTrackCount) {
+          renderEmployerApplications(data);
+          showToast("⚡ New Fast-Track candidate submission received!", "success");
+        }
+        lastSeenFastTrackCount = ftCount;
+      }
+    } catch (e) {}
+  }
+}
+
+setInterval(backgroundSync, 3500);
+window.addEventListener("focus", backgroundSync);
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  UTILITIES & MODALS
@@ -1566,6 +1814,12 @@ async function submitChallenge() {
       const companyName = currentJob?.company_name || "Employer";
       showToast(`Verification passed! Vaulted to #1 on ${companyName} Fast-Track Queue.`, "success");
       if (currentCandidate) currentCandidate.fast_track_qualified = true;
+      broadcastSyncEvent({
+        type: "APPLICATION_SUBMITTED",
+        applicationId: data.application?.application_id,
+        candidateName: currentCandidate?.full_name || "Aarav Sharma",
+        jobId: currentJob?.id,
+      });
       await loadCandidateStatusBoard();
       await loadCandidateJobs();
     } else {
@@ -1808,6 +2062,11 @@ async function createEmployerJob() {
     const newJob = await res.json();
     lastCreatedJobId = newJob.id;
     closeModal("modal-create-job");
+
+    broadcastSyncEvent({
+      type: "JOB_POSTED",
+      job: newJob,
+    });
 
     // Refresh bootstrap, select the new job, reload candidate jobs & employer cockpit
     await loadEmployerBootstrap();
@@ -2079,6 +2338,11 @@ async function executeDisposition() {
     if (!res.ok) throw new Error("Disposition failed");
     closeModal("modal-disposition");
     showToast(action === "schedule_interview" ? "Interview round scheduled!" : "Candidate notified with feedback.", "success");
+    broadcastSyncEvent({
+      type: "APPLICATION_STATUS_CHANGED",
+      applicationId: appId,
+      action: action,
+    });
     loadEmployerCockpit();
     loadCandidateStatusBoard();
   } catch (err) {
@@ -2112,6 +2376,11 @@ async function executeGhost() {
 
     closeModal("modal-ghost");
     showToast("Ghosting simulated: 72h SLA breached, company score penalized.", "warn");
+    broadcastSyncEvent({
+      type: "APPLICATION_STATUS_CHANGED",
+      applicationId: ghostTargetAppId,
+      action: "ghost_breached",
+    });
     loadEmployerCockpit();
     loadCandidateStatusBoard();
   } catch (err) {
