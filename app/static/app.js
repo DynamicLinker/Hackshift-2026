@@ -257,18 +257,18 @@ function applyActiveSession(session) {
   const roleBadgeEl = document.getElementById("session-role-badge");
 
   if (session.role === "employer") {
-    // Apply Executive Operations Theme
-    document.body.className = "theme-employer min-h-screen flex flex-col antialiased selection:bg-slate-900 selection:text-white";
+    // Apply Flip7 Vintage Card-Game Master Desk Theme
+    document.body.className = "theme-employer min-h-screen flex flex-col antialiased selection:bg-[#FFD23F] selection:text-[#143836]";
     if (nameEl) nameEl.textContent = session.company_name || "Acme Systems";
     if (avatarEl) avatarEl.textContent = (session.company_name || "A")[0].toUpperCase();
     if (roleTextEl) roleTextEl.textContent = `${session.user_name || "Hiring Lead"} · 72h SLA Active`;
     if (roleBadgeEl) {
-      roleBadgeEl.className = "text-[10px] text-blue-700 font-medium flex items-center gap-1";
+      roleBadgeEl.className = "text-[10px] text-[#1E8C86] font-bold flex items-center gap-1";
     }
     switchTab("employer");
   } else {
-    // Apply Obsidian Developer Workbench Theme
-    document.body.className = "theme-candidate min-h-screen flex flex-col antialiased selection:bg-blue-600 selection:text-white";
+    // Apply Flip7 Retro Arcade Challenger Arena Theme
+    document.body.className = "theme-candidate min-h-screen flex flex-col antialiased selection:bg-[#EF6C4A] selection:text-white";
     if (nameEl) nameEl.textContent = session.full_name || `@${session.github_username}`;
     if (avatarEl) {
       if (session.avatar_url) {
@@ -279,7 +279,7 @@ function applyActiveSession(session) {
     }
     if (roleTextEl) roleTextEl.textContent = `@${session.github_username} (Verified Candidate)`;
     if (roleBadgeEl) {
-      roleBadgeEl.className = "text-[10px] text-emerald-400 font-medium flex items-center gap-1";
+      roleBadgeEl.className = "text-[10px] text-[#3CC4BD] font-bold flex items-center gap-1";
     }
     const inputUser = document.getElementById("input-github-user");
     if (inputUser) inputUser.value = session.github_username;
@@ -368,17 +368,17 @@ function switchTab(tab) {
   const btnEmp  = document.getElementById("btn-tab-employer");
 
   if (tab === "candidate") {
-    document.body.className = "theme-candidate min-h-screen flex flex-col antialiased selection:bg-blue-600 selection:text-white";
+    document.body.className = "theme-candidate min-h-screen flex flex-col antialiased selection:bg-[#EF6C4A] selection:text-white";
     candTab.classList.remove("hidden"); empTab.classList.add("hidden");
-    btnCand.className = "flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-semibold transition-all bg-emerald-950/80 text-emerald-300 border border-emerald-700/80 shadow-sm";
-    btnEmp.className  = "flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-medium transition-all text-slate-400 hover:text-slate-200 hover:bg-slate-800/60";
+    btnCand.className = "f7-btn f7-btn-coral flex items-center gap-2 px-5 py-2 text-xs shadow-md";
+    btnEmp.className  = "f7-btn flex items-center gap-2 px-5 py-2 text-xs text-[#8FB5B3] hover:text-white transition";
     loadCandidateStatusBoard();
     loadCandidateJobs();
   } else {
-    document.body.className = "theme-employer min-h-screen flex flex-col antialiased selection:bg-slate-900 selection:text-white";
+    document.body.className = "theme-employer min-h-screen flex flex-col antialiased selection:bg-[#FFD23F] selection:text-[#143836]";
     empTab.classList.remove("hidden");  candTab.classList.add("hidden");
-    btnEmp.className  = "flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-semibold transition-all bg-white text-slate-900 shadow-sm border border-slate-300";
-    btnCand.className = "flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-medium transition-all text-slate-600 hover:text-slate-900 hover:bg-slate-50";
+    btnEmp.className  = "f7-btn f7-btn-gold flex items-center gap-2 px-5 py-2 text-xs shadow-md";
+    btnCand.className = "f7-btn flex items-center gap-2 px-5 py-2 text-xs text-[#1E8C86] hover:text-[#143836] transition";
     loadEmployerCockpit();
   }
   lucide.createIcons();
@@ -1517,13 +1517,15 @@ async function loadCandidateJobs() {
     }
 
     const card = document.createElement("div");
-    let cardBorder = "border-slate-200 bg-white hover:border-blue-400";
+    let cardCls = "f7-card p-4 flex flex-col justify-between gap-3 transition ";
     if (isApplied) {
-      cardBorder = "border-emerald-300 bg-emerald-50/20";
+      cardCls += "f7-card-coral bg-[#EF6C4A]/10";
     } else if (match.isMatch && isQualified) {
-      cardBorder = "border-emerald-300 ring-1 ring-emerald-300/60 bg-white hover:border-emerald-500 shadow-sm";
+      cardCls += "f7-card-gold bg-gradient-to-b from-[#FFD23F]/10 to-transparent";
+    } else {
+      cardCls += "border-l-6 border-l-[#2BA8A2]";
     }
-    card.className = `p-4 rounded-xl border ${cardBorder} shadow-sm flex flex-col justify-between gap-3 transition`;
+    card.className = cardCls;
 
     const stackPills = (job.stack_tags || [])
       .slice(0, 4)
@@ -1571,7 +1573,7 @@ async function loadCandidateJobs() {
     } else if (match.isMatch) {
       actionButton = `
         <button onclick="startJobChallenge('${job.id}')"
-          class="w-full py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold text-xs shadow-sm flex items-center justify-center gap-2 transition active:scale-95">
+          class="f7-btn f7-btn-gold w-full py-2.5 px-4 text-xs flex items-center justify-center gap-2">
           <span>🎯 Apply Now (Take 5-Min Match Test)</span>
           <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
         </button>
@@ -1579,7 +1581,7 @@ async function loadCandidateJobs() {
     } else {
       actionButton = `
         <button onclick="startJobChallenge('${job.id}')"
-          class="w-full py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shadow-sm flex items-center justify-center gap-1.5 transition">
+          class="f7-btn f7-btn-teal w-full py-2.5 px-4 text-xs flex items-center justify-center gap-2">
           <span>Take 5-Min Test for this Role</span>
           <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
         </button>
@@ -2193,60 +2195,75 @@ function renderEmployerQueues(data) {
     let actionBtns = "";
     if (isPending) {
       actionBtns = `
-        <div class="flex items-center gap-1.5 flex-wrap">
+        <div class="flex items-center gap-2 flex-wrap">
           <button onclick="event.stopPropagation(); openDispositionModal('${app.id}', 'approve_offer')"
-            class="px-2.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs flex items-center gap-1 transition shadow-sm">
+            class="f7-btn f7-btn-teal px-3 py-1.5 text-xs flex items-center gap-1.5 shadow-sm">
             <i data-lucide="check-check" class="w-3.5 h-3.5"></i>
-            <span>Approve & Offer</span>
+            <span>Approve &amp; Offer</span>
           </button>
           <button onclick="event.stopPropagation(); openDispositionModal('${app.id}', 'schedule_interview')"
-            class="px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs flex items-center gap-1 transition shadow-sm">
+            class="f7-btn f7-btn-gold px-3.5 py-1.5 text-xs flex items-center gap-1.5 shadow-sm">
             <i data-lucide="calendar" class="w-3.5 h-3.5"></i>
             <span>Schedule</span>
           </button>
           <button onclick="event.stopPropagation(); openDispositionModal('${app.id}', 'reject_with_feedback')"
-            class="px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium text-xs border border-slate-200 transition">
+            class="f7-btn px-3 py-1.5 rounded-full bg-slate-200 hover:bg-slate-300 text-[#143836] text-xs font-bold border border-slate-300">
             Pass w/ Feedback
           </button>
           <button onclick="event.stopPropagation(); openGhostModal('${app.id}')"
             title="Simulate 72h inactivity"
-            class="px-2 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold border border-rose-200 transition">
+            class="f7-btn px-2.5 py-1.5 rounded-full bg-[#EF6C4A]/15 hover:bg-[#EF6C4A]/25 text-[#D45233] text-xs font-bold border border-[#EF6C4A]/40">
             Simulate Ghost
           </button>
         </div>
       `;
     } else if (app.status === "approved_offer") {
-      actionBtns = `<span class="px-2.5 py-1 rounded bg-emerald-50 text-emerald-800 border border-emerald-200 font-bold text-xs flex items-center gap-1"><i data-lucide="check-check" class="w-3.5 h-3.5 text-emerald-600"></i><span>Offer Extended</span></span>`;
+      actionBtns = `<span class="f7-btn px-3 py-1 rounded-full bg-[#E8F6F5] text-[#1E8C86] border-2 border-[#2BA8A2] font-black text-xs flex items-center gap-1"><i data-lucide="check-check" class="w-3.5 h-3.5 text-[#2BA8A2]"></i><span>Offer Extended</span></span>`;
     } else if (isInterview) {
-      actionBtns = `<span class="px-2.5 py-1 rounded bg-indigo-50 text-indigo-700 border border-indigo-200 font-semibold text-xs">Interview: ${app.interview_time || 'Scheduled'}</span>`;
+      actionBtns = `<span class="f7-btn px-3 py-1 rounded-full bg-[#FFF8E7] text-[#143836] border-2 border-[#FFD23F] font-black text-xs flex items-center gap-1"><span>Interview: ${app.interview_time || 'Scheduled'}</span></span>`;
     } else if (isRejected) {
-      actionBtns = `<span class="px-2.5 py-1 rounded bg-slate-100 text-slate-600 border border-slate-200 font-medium text-xs">Closed with Feedback</span>`;
+      actionBtns = `<span class="f7-btn px-3 py-1 rounded-full bg-slate-100 text-slate-600 border border-slate-300 font-bold text-xs">Closed with Feedback</span>`;
     } else if (isGhosted) {
-      actionBtns = `<span class="px-2.5 py-1 rounded bg-rose-100 text-rose-800 border border-rose-300 font-bold text-xs">Ghosted (Score Penalized)</span>`;
+      actionBtns = `<span class="f7-btn px-3 py-1 rounded-full bg-[#EF6C4A]/20 text-[#D45233] border-2 border-[#EF6C4A] font-black text-xs">Ghosted (Score Penalized)</span>`;
     }
 
+    const isPodiumGold = (index === 0 && !isGhosted);
     const card = document.createElement("div");
-    card.className = `bg-white rounded-xl border ${isGhosted ? 'border-rose-300 bg-rose-50/20' : 'border-slate-200'} p-4 space-y-3 hover:border-slate-300 cursor-pointer transition shadow-sm`;
+    let cardCls = "f7-card p-4 space-y-3 cursor-pointer transition shadow-sm ";
+    if (isGhosted) {
+      cardCls += "border-[#EF6C4A] border-l-8 bg-rose-50/20";
+    } else if (isPodiumGold) {
+      cardCls += "f7-card-gold bg-gradient-to-r from-[#FFFDF7] via-[#FFF9E6] to-[#FFFDF7]";
+    } else if (index === 1) {
+      cardCls += "border-l-8 border-l-slate-400 bg-white";
+    } else if (index === 2) {
+      cardCls += "border-l-8 border-l-[#EF6C4A] bg-white";
+    } else {
+      cardCls += "border-l-6 border-l-[#2BA8A2] bg-white";
+    }
+
+    card.className = cardCls;
     card.onclick = () => openApplicationStatusModal(app.id);
     card.innerHTML = `
       <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div class="flex items-center gap-3">
-          <span class="w-6 h-6 rounded-full bg-slate-100 text-slate-700 font-mono font-bold text-xs flex items-center justify-center border border-slate-200">
-            #${index + 1}
+          <span class="w-7 h-7 rounded-full ${isPodiumGold ? 'bg-[#FFD23F] text-[#143836] border-2 border-[#E6B800] shadow-sm' : 'bg-slate-100 text-slate-700 border border-slate-200'} font-mono font-black text-xs flex items-center justify-center shrink-0">
+            ${isPodiumGold ? '<span class="f7-crown-bounce">👑</span>' : `#${index + 1}`}
           </span>
-          <img src="${cand.avatar_url || 'https://avatars.githubusercontent.com/u/8942111?v=4'}" class="w-10 h-10 rounded-full border border-slate-200">
+          <img src="${cand.avatar_url || 'https://avatars.githubusercontent.com/u/8942111?v=4'}" class="w-10 h-10 rounded-full border-2 border-[#2BA8A2] shadow-sm">
           <div>
             <div class="flex items-center gap-2">
-              <h4 class="font-bold text-slate-900 text-sm">${app.candidate_name}</h4>
-              <span class="font-mono text-xs text-blue-600">@${app.github_username}</span>
+              <h4 class="font-black text-slate-900 text-sm tracking-tight">${app.candidate_name}</h4>
+              <span class="font-mono text-xs text-[#1E8C86] font-bold">@${app.github_username}</span>
+              ${isPodiumGold ? '<span class="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-[#FFD23F] text-[#143836] border border-[#E6B800] shadow-sm">#1 Fast-Track</span>' : ''}
             </div>
-            <p class="text-[11px] text-slate-500 line-clamp-1">${cand.bio || 'Verified Developer'}</p>
+            <p class="text-[11px] text-slate-500 line-clamp-1 font-medium">${cand.bio || 'Verified Developer'}</p>
           </div>
         </div>
         <div class="flex items-center gap-3">
           <div class="text-right">
-            <div class="text-[10px] text-slate-400 uppercase font-semibold">Proof Score</div>
-            <div class="text-base font-black text-emerald-600">${app.composite_score}%</div>
+            <div class="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Proof Score</div>
+            <div class="text-lg font-black ${isPodiumGold ? 'text-[#143836] bg-[#FFD23F] px-2.5 py-0.5 rounded-full border border-[#E6B800] shadow-sm' : 'text-[#1E8C86] font-mono'}">${app.composite_score}%</div>
           </div>
           ${slaBadge}
         </div>
@@ -2254,10 +2271,10 @@ function renderEmployerQueues(data) {
 
       <div class="pt-2 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <div class="flex items-center gap-2 flex-wrap text-xs text-slate-500">
-          <span class="inline-flex items-center gap-1"><i data-lucide="shield-check" class="w-3.5 h-3.5 text-emerald-600"></i><span>Git Verified · 5-Min Test Cleared</span></span>
+          <span class="inline-flex items-center gap-1 font-semibold text-[#1E8C86]"><i data-lucide="shield-check" class="w-4 h-4 text-[#2BA8A2]"></i><span>Git Provenance Verified · 5-Min Test Cleared</span></span>
           <button onclick="event.stopPropagation(); openTopologyModalForCandidate('${app.github_username}')"
-            class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-mono bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 transition">
-            <i data-lucide="git-fork" class="w-3 h-3 text-blue-600"></i>
+            class="f7-btn px-2.5 py-1 text-[11px] font-mono bg-[#E8F6F5] hover:bg-[#D2ECEB] text-[#143836] border border-[#2BA8A2] transition">
+            <i data-lucide="git-fork" class="w-3 h-3 text-[#2BA8A2]"></i>
             <span>Inspect Topology</span>
           </button>
         </div>

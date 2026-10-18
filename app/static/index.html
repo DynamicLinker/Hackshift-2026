@@ -12,21 +12,31 @@
       theme: {
         extend: {
           fontFamily: {
-            mono: ['JetBrains Mono', 'Menlo', 'Courier New', 'monospace'],
+            mono: ['JetBrains Mono', 'Menlo', 'monospace'],
             sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
           },
           colors: {
-            brand: {
-              50: '#f8fafc',
-              100: '#f1f5f9',
-              200: '#e2e8f0',
-              300: '#cbd5e1',
-              400: '#94a3b8',
-              500: '#64748b',
-              600: '#475569',
-              700: '#334155',
-              800: '#1e293b',
-              900: '#0f172a',
+            f7: {
+              teal: '#2BA8A2',
+              'teal-light': '#3CC4BD',
+              'teal-dark': '#1E8C86',
+              'teal-bg': '#E8F6F5',
+              gold: '#FFD23F',
+              'gold-light': '#FFE47A',
+              'gold-dark': '#E6B800',
+              coral: '#EF6C4A',
+              'coral-light': '#FF8A6A',
+              'coral-dark': '#D45233',
+              cream: '#FFF8E7',
+              'cream-card': '#FFFDF7',
+              sky: '#5DADE2',
+              surface: '#EFF8F7',
+              ink: '#143836',
+              'ink-muted': '#496B69',
+              'dark-bg': '#081B1A',
+              'dark-panel': '#0E2928',
+              'dark-card': '#133937',
+              'dark-border': '#1E504D'
             }
           }
         }
@@ -34,172 +44,452 @@
     }
   </script>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
-    body { font-family: 'Inter', sans-serif; transition: background-color 0.25s ease, color 0.25s ease; }
-    code, pre, textarea.code-font, .font-mono { font-family: 'JetBrains Mono', monospace; }
-    .pulse-urgent { animation: pulseUrgent 1.6s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
-    @keyframes pulseUrgent { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
-    .slide-in { animation: slideIn 0.22s ease-out; }
-    @keyframes slideIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
-    /* Custom scrollbar for code and queues */
-    ::-webkit-scrollbar { width: 6px; height: 6px; }
-    ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 9999px; }
-    ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 
-    /* ── Distinct Palette: Employer Cockpit (Executive Operations) ──────── */
+    :root {
+      --f7-teal: #2BA8A2;
+      --f7-teal-light: #3CC4BD;
+      --f7-teal-dark: #1E8C86;
+      --f7-teal-bg: #E8F6F5;
+      --f7-gold: #FFD23F;
+      --f7-gold-light: #FFE47A;
+      --f7-gold-dark: #E6B800;
+      --f7-coral: #EF6C4A;
+      --f7-coral-light: #FF8A6A;
+      --f7-coral-dark: #D45233;
+      --f7-cream: #FFF8E7;
+      --f7-cream-card: #FFFDF7;
+      --f7-sky: #5DADE2;
+      --f7-surface: #EFF8F7;
+      --f7-ink: #143836;
+      --f7-ink-muted: #496B69;
+
+      /* Flip7 Colored Glow Elevation System */
+      --shadow-f7-card: 0 4px 20px rgba(43, 168, 162, 0.16);
+      --shadow-coral-glow: 0 4px 22px rgba(239, 108, 74, 0.42);
+      --shadow-teal-glow: 0 4px 22px rgba(43, 168, 162, 0.38);
+      --shadow-gold-glow: 0 4px 22px rgba(255, 210, 63, 0.48);
+      --shadow-sky-glow: 0 4px 18px rgba(93, 173, 226, 0.35);
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      transition: background-color 0.25s ease, color 0.25s ease;
+    }
+    code, pre, textarea.code-font, .font-mono { font-family: 'JetBrains Mono', monospace; }
+
+    /* ── Flip7 Retro Folded Ribbon Pattern ─────────────────────────────────── */
+    .f7-ribbon {
+      position: relative;
+      background: #FFF8E7;
+      color: #1E8C86;
+      font-weight: 800;
+      padding: 6px 20px;
+      border: 3px solid #1E8C86;
+      border-radius: 8px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 16px rgba(30, 140, 134, 0.25);
+      z-index: 2;
+    }
+    .f7-ribbon::before,
+    .f7-ribbon::after {
+      content: '';
+      position: absolute;
+      top: 6px;
+      width: 14px;
+      height: 100%;
+      background: #F0E6D2;
+      border: 3px solid #1E8C86;
+      z-index: -1;
+    }
+    .f7-ribbon::before {
+      left: -12px;
+      transform: skewY(-14deg);
+      border-right: none;
+      border-radius: 4px 0 0 4px;
+    }
+    .f7-ribbon::after {
+      right: -12px;
+      transform: skewY(14deg);
+      border-left: none;
+      border-radius: 0 4px 4px 0;
+    }
+
+    /* ── Flip7 Fanned Cards Logo Display ────────────────────────────────────── */
+    .f7-fan-deck {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 80px;
+      height: 56px;
+    }
+    .f7-mini-card {
+      position: absolute;
+      width: 26px;
+      height: 38px;
+      border-radius: 5px;
+      border: 2px solid #143836;
+      box-shadow: 0 3px 8px rgba(0, 0, 0, 0.16);
+      transform-origin: bottom center;
+      transition: transform 0.25s ease;
+    }
+    .f7-mini-card:nth-child(1) { background: #2BA8A2; transform: rotate(-24deg); left: 8px; }
+    .f7-mini-card:nth-child(2) { background: #FFD23F; transform: rotate(-12deg); left: 18px; }
+    .f7-mini-card:nth-child(3) { background: #FFF8E7; transform: rotate(0deg);   left: 28px; z-index: 2; }
+    .f7-mini-card:nth-child(4) { background: #EF6C4A; transform: rotate(12deg);  left: 38px; }
+    .f7-mini-card:nth-child(5) { background: #5DADE2; transform: rotate(24deg);  left: 48px; }
+
+    /* ── Flip7 Tactile Pill Buttons ─────────────────────────────────────────── */
+    .f7-btn {
+      border-radius: 999px !important;
+      font-weight: 800 !important;
+      letter-spacing: -0.01em;
+      transition: all 0.16s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+    .f7-btn:active {
+      transform: scale(0.95) !important;
+    }
+    .f7-btn-gold {
+      background: linear-gradient(135deg, #FFD23F 0%, #FFAE00 100%) !important;
+      color: #143836 !important;
+      border: 2px solid #E6B800 !important;
+      box-shadow: var(--shadow-gold-glow) !important;
+    }
+    .f7-btn-gold:hover {
+      background: linear-gradient(135deg, #FFE47A 0%, #FFB71B 100%) !important;
+      transform: translateY(-1px) scale(1.02);
+      box-shadow: 0 6px 26px rgba(255, 210, 63, 0.6) !important;
+    }
+    .f7-btn-teal {
+      background: linear-gradient(135deg, #2BA8A2 0%, #1E8C86 100%) !important;
+      color: #FFFFFF !important;
+      border: 2px solid #143836 !important;
+      box-shadow: var(--shadow-teal-glow) !important;
+    }
+    .f7-btn-teal:hover {
+      background: linear-gradient(135deg, #3CC4BD 0%, #2BA8A2 100%) !important;
+      transform: translateY(-1px) scale(1.02);
+      box-shadow: 0 6px 24px rgba(43, 168, 162, 0.5) !important;
+    }
+    .f7-btn-coral {
+      background: linear-gradient(135deg, #EF6C4A 0%, #D45233 100%) !important;
+      color: #FFFFFF !important;
+      border: 2px solid #143836 !important;
+      box-shadow: var(--shadow-coral-glow) !important;
+    }
+    .f7-btn-coral:hover {
+      background: linear-gradient(135deg, #FF8A6A 0%, #EF6C4A 100%) !important;
+      transform: translateY(-1px) scale(1.02);
+      box-shadow: 0 6px 24px rgba(239, 108, 74, 0.55) !important;
+    }
+
+    /* ── Flip7 Tactile Cards (6px Left Accent Bar) ────────────────────────── */
+    .f7-card {
+      border-radius: 20px !important;
+      border: 2px solid var(--f7-card-border, #D2ECEB) !important;
+      border-left-width: 6px !important;
+      border-left-color: var(--f7-teal) !important;
+      box-shadow: var(--shadow-f7-card) !important;
+      transition: transform 0.18s ease, box-shadow 0.18s ease !important;
+    }
+    .f7-card:hover {
+      transform: translateY(-2px);
+    }
+    .f7-card-gold {
+      border-left-width: 8px !important;
+      border-left-color: #FFD23F !important;
+      box-shadow: 0 6px 24px rgba(255, 210, 63, 0.35) !important;
+    }
+    .f7-card-coral {
+      border-left-width: 8px !important;
+      border-left-color: #EF6C4A !important;
+      box-shadow: 0 6px 24px rgba(239, 108, 74, 0.35) !important;
+    }
+
+    /* ── Section Dividers (3px Dashed) ────────────────────────────────────── */
+    .f7-dashed-title {
+      border-bottom: 3px dashed var(--f7-dashed-color, #A4D8D5) !important;
+      padding-bottom: 8px;
+    }
+
+    /* ── Flip7 Animations ─────────────────────────────────────────────────── */
+    @keyframes boomPulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(239, 108, 74, 0.7); }
+      50% { box-shadow: 0 0 0 12px rgba(239, 108, 74, 0); }
+    }
+    .f7-boom-pulse {
+      animation: boomPulse 1.8s infinite;
+    }
+
+    @keyframes crownWobble {
+      0%, 100% { transform: translateY(0) rotate(0deg); }
+      25% { transform: translateY(-3px) rotate(-8deg); }
+      75% { transform: translateY(-1px) rotate(8deg); }
+    }
+    .f7-crown-bounce {
+      display: inline-block;
+      animation: crownWobble 2s infinite ease-in-out;
+    }
+
+    /* ══════════════════════════════════════════════════════════════════════════
+       THEME 1: EMPLOYER COCKPIT (Vintage Card-Game Master Desk / Mint & Cream)
+    ══════════════════════════════════════════════════════════════════════════════ */
     body.theme-employer {
-      background-color: #f1f5f9;
-      color: #0f172a;
+      background-color: #EFF8F7 !important;
+      color: #143836 !important;
+      --f7-card-border: #D2ECEB;
+      --f7-dashed-color: #A4D8D5;
+      background-image: radial-gradient(#2BA8A2 0.75px, transparent 0.75px);
+      background-size: 24px 24px;
     }
     body.theme-employer header {
-      background-color: rgba(255, 255, 255, 0.96);
-      border-bottom: 1px solid #cbd5e1;
+      background-color: rgba(255, 253, 247, 0.98) !important;
+      border-bottom: 3px solid #2BA8A2 !important;
+      box-shadow: 0 4px 20px rgba(43, 168, 162, 0.15) !important;
+    }
+    body.theme-employer #tab-employer .bg-white {
+      background-color: #FFFDF7 !important;
+      border: 2px solid #D2ECEB !important;
+      border-left: 6px solid #2BA8A2 !important;
+      color: #143836 !important;
+      border-radius: 20px !important;
+      box-shadow: 0 4px 20px rgba(43, 168, 162, 0.12) !important;
+    }
+    body.theme-employer #tab-employer .bg-slate-50 {
+      background-color: #E8F6F5 !important;
+      border-color: #D2ECEB !important;
+      color: #143836 !important;
+    }
+    body.theme-employer input:not([type="checkbox"]),
+    body.theme-employer select {
+      background-color: #FFF8E7 !important;
+      color: #143836 !important;
+      border: 2px solid #2BA8A2 !important;
+      border-radius: 14px !important;
+      font-weight: 700 !important;
+    }
+    body.theme-employer input:focus,
+    body.theme-employer select:focus {
+      outline: none;
+      border-color: #FFD23F !important;
+      box-shadow: 0 0 0 4px rgba(255, 210, 63, 0.25) !important;
     }
 
-    /* ── Distinct Palette: Candidate Portal (Obsidian Workbench) ────────── */
+    /* ══════════════════════════════════════════════════════════════════════════
+       THEME 2: CANDIDATE WORKBENCH (Retro Arcade Challenger Arena / Midnight Teal)
+    ══════════════════════════════════════════════════════════════════════════════ */
     body.theme-candidate {
-      background-color: #080d1a;
-      color: #f8fafc;
+      background-color: #081B1A !important;
+      color: #E8F8F7 !important;
+      --f7-card-border: #1E504D;
+      --f7-dashed-color: #1E504D;
+      background-image: linear-gradient(to right, rgba(43, 168, 162, 0.05) 1px, transparent 1px),
+                        linear-gradient(to bottom, rgba(43, 168, 162, 0.05) 1px, transparent 1px);
+      background-size: 28px 28px;
     }
     body.theme-candidate header {
-      background-color: rgba(11, 17, 32, 0.96);
-      border-bottom: 1px solid #1e293b;
+      background-color: rgba(10, 31, 30, 0.98) !important;
+      border-bottom: 3px solid #3CC4BD !important;
+      box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5) !important;
     }
+    body.theme-candidate #tab-candidate .bg-white,
     body.theme-candidate #tab-candidate .cand-panel {
-      background-color: #0d1527;
-      border-color: #1e293b;
-      color: #f8fafc;
+      background-color: #0E2928 !important;
+      border: 2px solid #1E504D !important;
+      border-left: 6px solid #3CC4BD !important;
+      color: #E8F8F7 !important;
+      border-radius: 20px !important;
+      box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35) !important;
     }
+    body.theme-candidate #tab-candidate .bg-slate-50,
     body.theme-candidate #tab-candidate .cand-subcard {
-      background-color: #090e1c;
-      border-color: #1a253c;
+      background-color: #0A1E1D !important;
+      border-color: #1E504D !important;
+      color: #E8F8F7 !important;
     }
-    body.theme-candidate #tab-candidate input,
-    body.theme-candidate #tab-candidate select {
-      background-color: #060a14;
-      border-color: #1e293b;
-      color: #f8fafc;
+    body.theme-candidate input:not([type="checkbox"]),
+    body.theme-candidate select {
+      background-color: #FFF8E7 !important; /* Flip7 Rule: Cream for input surfaces! */
+      color: #143836 !important;
+      border: 2px solid #3CC4BD !important;
+      border-radius: 14px !important;
+      font-weight: 700 !important;
     }
+    body.theme-candidate input:focus,
+    body.theme-candidate select:focus {
+      outline: none;
+      border-color: #FFD23F !important;
+      box-shadow: 0 0 0 4px rgba(255, 210, 63, 0.35) !important;
+    }
+    body.theme-candidate textarea.code-font {
+      background-color: #051413 !important;
+      color: #3CC4BD !important;
+      border: 2px solid #1E504D !important;
+    }
+    body.theme-candidate .text-slate-900 { color: #E8F8F7 !important; }
+    body.theme-candidate .text-slate-800 { color: #D5F2F0 !important; }
+    body.theme-candidate .text-slate-700,
+    body.theme-candidate .text-slate-600 { color: #A3D4D1 !important; }
+    body.theme-candidate .text-slate-500,
+    body.theme-candidate .text-slate-400 { color: #72A5A2 !important; }
+    body.theme-candidate .border-slate-200,
+    body.theme-candidate .border-slate-100 { border-color: #1E504D !important; }
+
+    /* Custom scrollbar */
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #2BA8A2; border-radius: 9999px; }
+    ::-webkit-scrollbar-thumb:hover { background: #1E8C86; }
   </style>
 </head>
 <body class="bg-slate-50 text-slate-900 min-h-screen flex flex-col antialiased selection:bg-slate-900 selection:text-white">
 
   <!-- ══════════════════════════════════════════════════════════════════════
-       VIEW: LOGIN & PORTAL GATEWAY (Per-Tab Session Switcher)
+       VIEW: LOGIN & PORTAL GATEWAY (Flip7 Retro-Playful Packaging)
   ══════════════════════════════════════════════════════════════════════════ -->
-  <div id="view-login" class="min-h-screen w-full bg-[#080d1a] text-slate-100 flex flex-col justify-between p-4 sm:p-8 relative selection:bg-blue-600 selection:text-white hidden">
-    <!-- Subtle technical ambient backdrop -->
-    <div class="absolute inset-0 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(37,99,235,0.18),rgba(255,255,255,0))] pointer-events-none"></div>
+  <div id="view-login" class="min-h-screen w-full bg-[#0A2220] text-f7-cream flex flex-col justify-between p-4 sm:p-8 relative selection:bg-f7-coral selection:text-white hidden">
+    <!-- Retro halftone gaming ambient backdrop -->
+    <div class="absolute inset-0 bg-[radial-gradient(ellipse_70%_70%_at_50%_-10%,rgba(43,168,162,0.35),transparent),radial-gradient(circle_at_80%_80%,rgba(239,108,74,0.18),transparent)] pointer-events-none"></div>
 
     <!-- Header bar -->
     <div class="max-w-6xl w-full mx-auto flex items-center justify-between z-10">
       <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center font-black text-lg shadow-lg shadow-blue-500/20 ring-1 ring-white/10">
+        <div class="w-10 h-10 rounded-2xl bg-gradient-to-br from-[#2BA8A2] to-[#1E8C86] text-white flex items-center justify-center font-black text-xl shadow-[0_4px_16px_rgba(43,168,162,0.4)] border-2 border-[#3CC4BD]">
           ⚡
         </div>
         <div>
           <div class="flex items-center gap-2">
-            <span class="text-lg font-black tracking-tight text-white">ProofHired</span>
-            <span class="px-2 py-0.5 rounded text-[10px] font-bold tracking-wider bg-blue-950 text-blue-300 border border-blue-800 uppercase">
+            <span class="text-xl font-black tracking-tight text-white drop-shadow">ProofHired</span>
+            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-black tracking-wider bg-[#FFD23F] text-[#143836] border border-[#E6B800] uppercase shadow-sm">
               HackShift '26
             </span>
           </div>
-          <p class="text-xs text-slate-400 font-medium">Zero-Resume Proof-of-Competence Marketplace</p>
+          <p class="text-xs text-[#8EC7C3] font-semibold">Zero-Resume Proof-of-Competence Marketplace</p>
         </div>
       </div>
-      <div id="supabase-status-pill" class="flex items-center gap-2 text-xs text-slate-300 font-mono bg-slate-900/90 border border-slate-800 px-3 py-1.5 rounded-full">
-        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+      <div id="supabase-status-pill" class="flex items-center gap-2 text-xs text-[#DDF2F0] font-mono bg-[#0E312F] border-2 border-[#1E504D] px-3.5 py-1.5 rounded-full shadow-sm">
+        <span class="w-2.5 h-2.5 rounded-full bg-[#2BA8A2] animate-ping"></span>
         <span id="supabase-status-text">Supabase &amp; Live Realtime Ready</span>
       </div>
     </div>
 
-    <!-- Main Card Gateway -->
+    <!-- Central Showcase: Fanned Cards Logo & Portal Cards -->
     <div class="max-w-6xl w-full mx-auto my-6 z-10 space-y-6">
-      <div class="text-center max-w-2xl mx-auto space-y-2">
-        <h1 class="text-2xl sm:text-4xl font-extrabold tracking-tight text-white">
-          Authenticate Your Session For This Tab
-        </h1>
-        <p class="text-sm text-slate-400 leading-relaxed">
-          Each browser tab retains its own independent session. Run Tab 1 as 
-          <strong class="text-blue-400 font-semibold">Employer</strong> and Tab 2 as 
-          <strong class="text-emerald-400 font-semibold">Candidate</strong> for live cross-tab demo verification.
+      
+      <!-- Fanned Cards & Ribbon Header -->
+      <div class="text-center max-w-2xl mx-auto space-y-3">
+        <!-- 5 Fanned Colored Cards Motif -->
+        <div class="f7-fan-deck mx-auto">
+          <div class="f7-mini-card"></div>
+          <div class="f7-mini-card"></div>
+          <div class="f7-mini-card"></div>
+          <div class="f7-mini-card"></div>
+          <div class="f7-mini-card"></div>
+        </div>
+
+        <div class="flex items-center justify-center gap-2">
+          <span class="inline-block transform -skew-x-6 bg-[#FFF8E7] text-[#143836] px-3.5 py-0.5 rounded-lg border-2 border-[#143836] font-black tracking-tight text-3xl sm:text-5xl shadow-[0_4px_12px_rgba(0,0,0,0.35)]">
+            PROOF
+          </span>
+          <span class="inline-block text-[#FFD23F] font-black text-3xl sm:text-5xl tracking-tight drop-shadow-[0_4px_8px_rgba(0,0,0,0.7)]">
+            HIRED
+          </span>
+        </div>
+
+        <div>
+          <div class="f7-ribbon text-[11px] sm:text-xs">
+            Zero-Resume Proof-of-Competence Standard
+          </div>
+        </div>
+
+        <p class="text-xs sm:text-sm text-[#A9D8D5] max-w-xl mx-auto leading-relaxed pt-1">
+          Open two tabs simultaneously. Run Tab 1 as <strong class="text-[#FFD23F] font-bold">Employer Cockpit</strong> and Tab 2 as <strong class="text-[#3CC4BD] font-bold">Candidate Workbench</strong> for the live real-time demo.
         </p>
 
-        <!-- 1-Click Demo Test User Autofill Strip -->
-        <div class="flex flex-wrap items-center justify-center gap-2.5 pt-3">
-          <span class="text-xs text-slate-400 font-medium">1-Click Test Users:</span>
+        <!-- 1-Click Game Player Tokens -->
+        <div class="flex flex-wrap items-center justify-center gap-3 pt-2">
+          <span class="text-xs text-[#8EC7C3] font-bold uppercase tracking-wider">Tactile Quick Login:</span>
           <button type="button" onclick="fillTestUser('recruiter')"
-            class="px-3 py-1.5 rounded-xl bg-blue-950/80 hover:bg-blue-900 border border-blue-700/60 text-blue-300 text-xs font-semibold transition flex items-center gap-1.5 shadow-sm active:scale-95">
-            <i data-lucide="building-2" class="w-3.5 h-3.5 text-blue-400"></i>
-            <span>Acme Recruiter (recruiter@acmesystems.io)</span>
+            class="f7-btn px-4 py-2 bg-[#FFF8E7] hover:bg-white text-[#143836] border-2 border-[#2BA8A2] text-xs shadow-[0_4px_14px_rgba(43,168,162,0.3)] flex items-center gap-2">
+            <span class="w-5 h-5 rounded-full bg-[#FFD23F] text-[#143836] flex items-center justify-center font-black text-[10px]">🏢</span>
+            <span>Player 1: Acme Recruiter (recruiter@acmesystems.io)</span>
           </button>
           <button type="button" onclick="fillTestUser('candidate')"
-            class="px-3 py-1.5 rounded-xl bg-emerald-950/80 hover:bg-emerald-900 border border-emerald-700/60 text-emerald-300 text-xs font-semibold transition flex items-center gap-1.5 shadow-sm active:scale-95">
-            <i data-lucide="user-check" class="w-3.5 h-3.5 text-emerald-400"></i>
-            <span>Aarav Sharma (aarav@iiitd.ac.in)</span>
+            class="f7-btn px-4 py-2 bg-[#123836] hover:bg-[#184946] text-[#E8F8F7] border-2 border-[#3CC4BD] text-xs shadow-[0_4px_14px_rgba(60,196,189,0.3)] flex items-center gap-2">
+            <span class="w-5 h-5 rounded-full bg-[#EF6C4A] text-white flex items-center justify-center font-black text-[10px]">💻</span>
+            <span>Player 2: Aarav Candidate (aarav@iiitd.ac.in)</span>
           </button>
         </div>
       </div>
 
-      <!-- Two Gateway Cards Grid -->
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 max-w-4xl mx-auto pt-1">
+      <!-- Two Radically Distinct Gateway Game Boxes -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 max-w-4xl mx-auto pt-2">
 
-        <!-- Card 1: Employer Cockpit -->
-        <div class="rounded-2xl border border-blue-900/60 bg-gradient-to-b from-[#0b1222] to-[#080d19] p-6 sm:p-7 space-y-5 shadow-2xl backdrop-blur-md flex flex-col justify-between hover:border-blue-500/50 transition">
+        <!-- Card 1: Employer Cockpit (Vintage Cream Master Box) -->
+        <div class="rounded-3xl border-3 border-[#2BA8A2] bg-[#FFFDF7] text-[#143836] p-6 sm:p-7 space-y-5 shadow-[0_8px_30px_rgba(0,0,0,0.25)] flex flex-col justify-between relative overflow-hidden"
+             style="border-left: 10px solid #2BA8A2;">
           <div class="space-y-4">
             <div class="flex items-center justify-between">
-              <div class="w-12 h-12 rounded-xl bg-blue-600/15 border border-blue-500/30 text-blue-400 flex items-center justify-center">
-                <i data-lucide="building-2" class="w-6 h-6"></i>
+              <div class="w-12 h-12 rounded-2xl bg-[#E8F6F5] border-2 border-[#2BA8A2] text-[#1E8C86] flex items-center justify-center shadow-sm">
+                <i data-lucide="building-2" class="w-6 h-6 text-[#1E8C86]"></i>
               </div>
-              <span class="px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wide uppercase bg-blue-950 text-blue-300 border border-blue-800">
-                Company Operations
+              <span class="px-3 py-1 rounded-full text-[10px] font-black tracking-wider uppercase bg-[#E8F6F5] text-[#1E8C86] border-2 border-[#2BA8A2]">
+                👑 Game Master · Operations
               </span>
             </div>
 
             <div>
-              <h2 class="text-lg font-bold text-white">Employer Cockpit</h2>
-              <p class="text-xs text-slate-400 mt-1 leading-relaxed">
-                Publish engineering roles, inspect candidate Git commit DAGs, bypass cold resume spam, and enforce 72-hour Anti-Ghosting SLAs.
+              <h2 class="text-xl font-black text-[#143836] tracking-tight">Employer Cockpit</h2>
+              <p class="text-xs text-[#496B69] mt-1 leading-relaxed font-medium">
+                Publish live engineering roles, review audited Git DAG topologies, bypass 2,140+ resume dumps, and enforce 72-hour Anti-Ghosting SLAs.
               </p>
             </div>
 
             <div class="space-y-3 pt-1">
               <div>
-                <label class="block text-xs font-semibold text-slate-300 mb-1">Company Account Email:</label>
+                <label class="block text-xs font-bold text-[#143836] mb-1">Company Account Email:</label>
                 <input id="login-employer-email" type="email" value="recruiter@acmesystems.io"
-                  class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs font-medium text-slate-200 focus:border-blue-500 focus:outline-none font-mono">
+                  class="w-full px-3.5 py-2.5 rounded-xl bg-[#FFF8E7] border-2 border-[#2BA8A2] text-xs font-bold text-[#143836] focus:border-[#FFD23F] focus:outline-none font-mono shadow-inner">
               </div>
 
               <div>
-                <label class="block text-xs font-semibold text-slate-300 mb-1">Password:</label>
+                <label class="block text-xs font-bold text-[#143836] mb-1">Password:</label>
                 <input id="login-employer-password" type="password" value="Password123!"
-                  class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs font-medium text-slate-200 focus:border-blue-500 focus:outline-none font-mono">
+                  class="w-full px-3.5 py-2.5 rounded-xl bg-[#FFF8E7] border-2 border-[#2BA8A2] text-xs font-bold text-[#143836] focus:border-[#FFD23F] focus:outline-none font-mono shadow-inner">
               </div>
 
               <div class="grid grid-cols-2 gap-2">
                 <div>
-                  <label class="block text-xs font-semibold text-slate-300 mb-1">Company Profile:</label>
-                  <select id="login-employer-company" class="w-full px-2.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs font-medium text-slate-200 focus:border-blue-500 focus:outline-none">
+                  <label class="block text-xs font-bold text-[#143836] mb-1">Company Profile:</label>
+                  <select id="login-employer-company" class="w-full px-3 py-2.5 rounded-xl bg-[#FFF8E7] border-2 border-[#2BA8A2] text-xs font-bold text-[#143836] focus:border-[#FFD23F] focus:outline-none shadow-inner">
                     <option value="comp-acme">Acme Systems (98% SLA)</option>
                     <option value="comp-nova">Nova Labs (88% SLA)</option>
                     <option value="comp-phantom">Phantom Corp (62% SLA)</option>
                   </select>
                 </div>
                 <div>
-                  <label class="block text-xs font-semibold text-slate-300 mb-1">Hiring Lead / Team:</label>
+                  <label class="block text-xs font-bold text-[#143836] mb-1">Hiring Lead / Team:</label>
                   <input id="login-employer-name" type="text" value="Sarah Jenkins (Acme Lead)"
-                    class="w-full px-2.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs font-medium text-slate-200 focus:border-blue-500 focus:outline-none">
+                    class="w-full px-3 py-2.5 rounded-xl bg-[#FFF8E7] border-2 border-[#2BA8A2] text-xs font-bold text-[#143836] focus:border-[#FFD23F] focus:outline-none shadow-inner">
                 </div>
               </div>
             </div>
 
-            <div class="rounded-xl bg-slate-950/80 border border-slate-800/80 p-3 space-y-1.5 text-xs text-slate-400">
-              <div class="flex items-center gap-2 text-slate-300 font-semibold text-[11px]">
-                <i data-lucide="shield-check" class="w-3.5 h-3.5 text-blue-400"></i>
+            <div class="rounded-2xl bg-[#E8F6F5] border-2 border-[#B4E2DF] p-3.5 space-y-1.5 text-xs text-[#143836]">
+              <div class="flex items-center gap-2 font-bold text-[11px] text-[#1E8C86]">
+                <i data-lucide="shield-check" class="w-4 h-4 text-[#2BA8A2]"></i>
                 <span>Enforced Cockpit Features</span>
               </div>
-              <ul class="text-[11px] space-y-1 text-slate-400 pl-4 list-disc">
+              <ul class="text-[11px] space-y-1 text-[#325E5B] pl-4 list-disc font-medium">
                 <li>Fast-Track priority queue with 72h SLA countdown</li>
                 <li>Interactive Git Topology DAG &amp; AST diff inspector</li>
                 <li>1-click interview scheduling &amp; offer extension</li>
@@ -209,68 +499,69 @@
 
           <div class="pt-2 space-y-2">
             <button id="btn-login-employer-submit" onclick="submitEmployerLogin()"
-              class="w-full py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-lg shadow-blue-600/30 flex items-center justify-center gap-2 transition active:scale-[0.98]">
+              class="f7-btn f7-btn-gold w-full py-3 px-5 text-xs flex items-center justify-center gap-2">
               <span>Enter Employer Cockpit</span>
               <i data-lucide="arrow-right" class="w-4 h-4"></i>
             </button>
             <div class="text-center">
-              <a href="/?role=employer" target="_blank" class="text-[11px] text-blue-400 hover:text-blue-300 font-medium inline-flex items-center gap-1">
-                <span>Open in a new tab</span>
+              <a href="/?role=employer" target="_blank" class="text-[11px] text-[#1E8C86] hover:text-[#143836] font-bold inline-flex items-center gap-1">
+                <span>Open in separate window</span>
                 <i data-lucide="external-link" class="w-3 h-3"></i>
               </a>
             </div>
           </div>
         </div>
 
-        <!-- Card 2: Candidate Portal -->
-        <div class="rounded-2xl border border-emerald-900/60 bg-gradient-to-b from-[#09151c] to-[#070e17] p-6 sm:p-7 space-y-5 shadow-2xl backdrop-blur-md flex flex-col justify-between hover:border-emerald-500/50 transition">
+        <!-- Card 2: Candidate Portal (Midnight Arcade Challenger Box) -->
+        <div class="rounded-3xl border-3 border-[#1E504D] bg-[#0E2928] text-[#E8F8F7] p-6 sm:p-7 space-y-5 shadow-[0_8px_30px_rgba(0,0,0,0.35)] flex flex-col justify-between relative overflow-hidden"
+             style="border-left: 10px solid #EF6C4A;">
           <div class="space-y-4">
             <div class="flex items-center justify-between">
-              <div class="w-12 h-12 rounded-xl bg-emerald-600/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center">
-                <i data-lucide="code-2" class="w-6 h-6"></i>
+              <div class="w-12 h-12 rounded-2xl bg-[#091C1B] border-2 border-[#EF6C4A] text-[#EF6C4A] flex items-center justify-center shadow-sm">
+                <i data-lucide="code-2" class="w-6 h-6 text-[#EF6C4A]"></i>
               </div>
-              <span class="px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wide uppercase bg-emerald-950 text-emerald-300 border border-emerald-800">
-                Developer Workbench
+              <span class="px-3 py-1 rounded-full text-[10px] font-black tracking-wider uppercase bg-[#2D1612] text-[#FF8A6A] border-2 border-[#EF6C4A]">
+                ⚡ Challenger · Developer
               </span>
             </div>
 
             <div>
-              <h2 class="text-lg font-bold text-white">Candidate Portal</h2>
-              <p class="text-xs text-slate-400 mt-1 leading-relaxed">
-                Audit authentic GitHub commit DAGs, verify AST progression, and complete a 5-minute technical challenge to vault to #1.
+              <h2 class="text-xl font-black text-white tracking-tight">Candidate Workbench</h2>
+              <p class="text-xs text-[#8FB5B3] mt-1 leading-relaxed font-medium">
+                Audit authentic GitHub commit DAGs, prove incremental competence, and solve a 5-minute technical bug-fix to vault directly to #1.
               </p>
             </div>
 
             <div class="space-y-3 pt-1">
               <div>
-                <label class="block text-xs font-semibold text-slate-300 mb-1">Developer Account Email:</label>
+                <label class="block text-xs font-bold text-[#DDF2F0] mb-1">Developer Account Email:</label>
                 <input id="login-candidate-email" type="email" value="aarav@iiitd.ac.in"
-                  class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs font-medium text-slate-200 focus:border-emerald-500 focus:outline-none font-mono">
+                  class="w-full px-3.5 py-2.5 rounded-xl bg-[#FFF8E7] border-2 border-[#3CC4BD] text-xs font-bold text-[#143836] focus:border-[#FFD23F] focus:outline-none font-mono shadow-inner">
               </div>
 
               <div>
-                <label class="block text-xs font-semibold text-slate-300 mb-1">Password:</label>
+                <label class="block text-xs font-bold text-[#DDF2F0] mb-1">Password:</label>
                 <input id="login-candidate-password" type="password" value="Password123!"
-                  class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs font-medium text-slate-200 focus:border-emerald-500 focus:outline-none font-mono">
+                  class="w-full px-3.5 py-2.5 rounded-xl bg-[#FFF8E7] border-2 border-[#3CC4BD] text-xs font-bold text-[#143836] focus:border-[#FFD23F] focus:outline-none font-mono shadow-inner">
               </div>
 
               <div>
-                <label class="block text-xs font-semibold text-slate-300 mb-1">GitHub Username / Handle:</label>
+                <label class="block text-xs font-bold text-[#DDF2F0] mb-1">GitHub Username / Handle:</label>
                 <div class="relative">
-                  <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500 font-mono text-xs">@</span>
+                  <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#1E8C86] font-mono text-xs font-bold">@</span>
                   <input id="login-candidate-user" type="text" value="iiitd-dev"
                     placeholder="GitHub username"
-                    class="w-full pl-7 pr-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs font-mono text-slate-200 focus:border-emerald-500 focus:outline-none">
+                    class="w-full pl-8 pr-3.5 py-2.5 rounded-xl bg-[#FFF8E7] border-2 border-[#3CC4BD] text-xs font-bold font-mono text-[#143836] focus:border-[#FFD23F] focus:outline-none shadow-inner">
                 </div>
               </div>
             </div>
 
-            <div class="rounded-xl bg-slate-950/80 border border-slate-800/80 p-3 space-y-1.5 text-xs text-slate-400">
-              <div class="flex items-center gap-2 text-slate-300 font-semibold text-[11px]">
-                <i data-lucide="check-circle-2" class="w-3.5 h-3.5 text-emerald-400"></i>
+            <div class="rounded-2xl bg-[#091D1C] border-2 border-[#1E504D] p-3.5 space-y-1.5 text-xs text-[#8FB5B3]">
+              <div class="flex items-center gap-2 font-bold text-[11px] text-[#3CC4BD]">
+                <i data-lucide="check-circle-2" class="w-4 h-4 text-[#3CC4BD]"></i>
                 <span>Enforced Portal Features</span>
               </div>
-              <ul class="text-[11px] space-y-1 text-slate-400 pl-4 list-disc">
+              <ul class="text-[11px] space-y-1 text-[#78A8A5] pl-4 list-disc font-medium">
                 <li>Native Git repository clone &amp; AST DAG topology analysis</li>
                 <li>Tailored 5-min self-repo challenge with timer &amp; sandbox</li>
                 <li>Strict 72-hour anti-ghosting SLA guarantee tracking</li>
@@ -280,13 +571,13 @@
 
           <div class="pt-2 space-y-2">
             <button id="btn-login-candidate-submit" onclick="submitCandidateLogin()"
-              class="w-full py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-lg shadow-emerald-600/30 flex items-center justify-center gap-2 transition active:scale-[0.98]">
+              class="f7-btn f7-btn-coral w-full py-3 px-5 text-xs flex items-center justify-center gap-2">
               <span>Enter Candidate Portal</span>
               <i data-lucide="arrow-right" class="w-4 h-4"></i>
             </button>
             <div class="text-center">
-              <a href="/?role=candidate" target="_blank" class="text-[11px] text-emerald-400 hover:text-emerald-300 font-medium inline-flex items-center gap-1">
-                <span>Open in a new tab</span>
+              <a href="/?role=candidate" target="_blank" class="text-[11px] text-[#3CC4BD] hover:text-white font-bold inline-flex items-center gap-1">
+                <span>Open in separate window</span>
                 <i data-lucide="external-link" class="w-3 h-3"></i>
               </a>
             </div>
@@ -296,15 +587,15 @@
       </div>
 
       <!-- Demo Workflow Footnote -->
-      <div class="max-w-2xl mx-auto rounded-xl bg-slate-900/60 border border-slate-800/80 p-3.5 text-xs text-slate-400 text-center">
-        <span class="text-slate-300 font-semibold">Demo Flow:</span>
-        Tab 1 posts an opening as Employer ➔ Tab 2 logs in as Candidate, sees the match, audits Git DAG &amp; solves the 5-min challenge ➔ Tab 1 switches to view the Fast-Track candidate &amp; schedules interview!
+      <div class="max-w-2xl mx-auto rounded-2xl bg-[#0E2E2D] border-2 border-[#1E504D] p-3.5 text-xs text-[#8EC7C3] text-center font-medium shadow-sm">
+        <span class="text-[#FFD23F] font-bold">🎮 Two-Tab Demo Flow:</span>
+        Tab 1 posts opening as Employer ➔ Tab 2 audits Git DAG &amp; solves 5-min challenge ➔ Tab 1 sees Fast-Track #1 &amp; schedules interview!
       </div>
     </div>
 
     <!-- Footer -->
-    <div class="max-w-6xl w-full mx-auto text-center text-[11px] text-slate-600 z-10">
-      ProofHired &copy; 2026 · Built for HackShift '26 · Zero-Resume Proof-of-Competence Standard
+    <div class="max-w-6xl w-full mx-auto text-center text-xs text-[#528784] font-medium z-10">
+      ProofHired &copy; 2026 · Powered by Flip7 Design System · Zero-Resume Standard
     </div>
   </div>
 
@@ -314,36 +605,36 @@
   ══════════════════════════════════════════════════════════════════════════ -->
   <div id="view-app" class="min-h-screen flex flex-col">
 
-    <!-- ── Top Header Navigation ────────────────────────────────────────────── -->
-    <header class="bg-white/95 backdrop-blur-md border-b border-slate-200/80 sticky top-0 z-40">
+    <!-- ── Top Header Navigation (Flip7 Tactile Console) ─────────────────── -->
+    <header class="sticky top-0 z-40 transition-all backdrop-blur-md">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
         
-        <!-- Brand Logo -->
+        <!-- Brand Logo with Retro Packaging Flare -->
         <div class="flex items-center gap-3 shrink-0">
-          <div class="w-9 h-9 rounded-xl bg-slate-900 text-white flex items-center justify-center font-black text-base shadow-sm ring-1 ring-slate-900/10">
+          <div class="w-10 h-10 rounded-2xl bg-gradient-to-br from-[#2BA8A2] to-[#1E8C86] text-white flex items-center justify-center font-black text-xl shadow-[0_4px_14px_rgba(43,168,162,0.35)] border-2 border-[#3CC4BD]">
             ⚡
           </div>
           <div>
             <div class="flex items-center gap-2">
-              <span class="text-base font-extrabold tracking-tight text-slate-900">ProofHired</span>
-              <span class="hidden sm:inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold tracking-wider bg-slate-100 text-slate-700 border border-slate-200 uppercase">
-                HackShift '26
+              <span class="text-lg font-black tracking-tight drop-shadow-sm font-sans">ProofHired</span>
+              <span class="hidden sm:inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black tracking-wider bg-[#FFD23F] text-[#143836] border border-[#E6B800] uppercase shadow-sm">
+                Flip7 Edition
               </span>
             </div>
-            <p class="hidden sm:block text-[11px] text-slate-500 font-medium">Zero-Resume Proof-of-Competence</p>
+            <p class="hidden sm:block text-[11px] opacity-80 font-semibold tracking-tight">Zero-Resume Proof-of-Competence</p>
           </div>
         </div>
 
-        <!-- Clean 2-Segment Tab Switcher -->
-        <nav class="flex items-center bg-slate-100/90 p-1 rounded-xl border border-slate-200/90 gap-1 shadow-inner">
+        <!-- Flip7 Tactile 2-Segment Tab Switcher -->
+        <nav class="flex items-center p-1 rounded-full border-2 border-[#2BA8A2]/50 bg-black/10 gap-1.5 shadow-inner">
           <button id="btn-tab-candidate" onclick="switchTab('candidate')"
-            class="flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-semibold transition-all bg-white text-slate-900 shadow-sm border border-slate-200/80">
-            <i data-lucide="user-check" class="w-3.5 h-3.5 text-blue-600"></i>
-            <span>Candidate Portal</span>
+            class="f7-btn flex items-center gap-2 px-5 py-2 text-xs transition-all shadow-sm">
+            <i data-lucide="code-2" class="w-4 h-4"></i>
+            <span>Candidate Workbench</span>
           </button>
           <button id="btn-tab-employer" onclick="switchTab('employer')"
-            class="flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-medium transition-all text-slate-600 hover:text-slate-900 hover:bg-white/60">
-            <i data-lucide="building-2" class="w-3.5 h-3.5 text-slate-500"></i>
+            class="f7-btn flex items-center gap-2 px-5 py-2 text-xs transition-all shadow-sm">
+            <i data-lucide="building-2" class="w-4 h-4"></i>
             <span>Employer Cockpit</span>
           </button>
         </nav>
@@ -351,34 +642,34 @@
         <!-- Right Side: Active Session Pill & Demo Personas -->
         <div class="flex items-center gap-2 sm:gap-3 shrink-0">
           <!-- Active Session Pill -->
-          <div id="session-active-pill" class="flex items-center gap-2 pl-2 border-l border-slate-200">
-            <div class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-100/90 border border-slate-200/90 text-xs">
-              <span id="session-avatar" class="w-5 h-5 rounded-full bg-slate-900 text-white flex items-center justify-center font-bold text-[10px] shrink-0">A</span>
+          <div id="session-active-pill" class="flex items-center gap-2 pl-2">
+            <div class="flex items-center gap-2 px-3.5 py-1.5 rounded-full border-2 border-[#2BA8A2]/60 bg-white/70 backdrop-blur text-xs shadow-sm">
+              <span id="session-avatar" class="w-6 h-6 rounded-full bg-[#1E8C86] text-[#FFF8E7] flex items-center justify-center font-black text-xs shrink-0 shadow-sm border border-[#2BA8A2]">A</span>
               <div class="hidden sm:flex flex-col text-left leading-tight">
-                <span id="session-name" class="font-bold text-slate-900 text-xs truncate max-w-[140px]">Acme Systems</span>
-                <span id="session-role-badge" class="text-[10px] text-emerald-700 font-medium flex items-center gap-1">
-                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span id="session-name" class="font-bold text-xs truncate max-w-[140px]">Acme Systems</span>
+                <span id="session-role-badge" class="text-[10px] font-bold flex items-center gap-1">
+                  <span class="w-1.5 h-1.5 rounded-full bg-[#2BA8A2] animate-pulse"></span>
                   <span id="session-role-text">Employer (72h SLA Active)</span>
                 </span>
               </div>
             </div>
             <button onclick="logoutSession()" title="Switch or Logout Portal Session"
-              class="px-2.5 py-1.5 rounded-xl text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition border border-transparent hover:border-slate-200 flex items-center gap-1 text-xs font-semibold">
-              <i data-lucide="log-out" class="w-3.5 h-3.5 text-slate-500"></i>
-              <span class="hidden md:inline">Switch</span>
+              class="f7-btn px-3 py-1.5 rounded-full bg-[#EF6C4A] hover:bg-[#D45233] text-white text-xs shadow-[0_2px_10px_rgba(239,108,74,0.3)] flex items-center gap-1">
+              <i data-lucide="log-out" class="w-3.5 h-3.5"></i>
+              <span class="hidden md:inline font-bold">Switch</span>
             </button>
           </div>
 
           <!-- Quick Demo Persona Switcher -->
-          <div class="hidden lg:flex items-center gap-1.5 pl-2 border-l border-slate-200">
+          <div class="hidden lg:flex items-center gap-1.5 pl-2">
             <button onclick="setCandidateDemo('iiitd-dev')"
-              class="text-xs font-semibold px-2 py-1 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200/80 hover:bg-emerald-100/80 transition flex items-center gap-1">
-              <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+              class="f7-btn text-xs px-2.5 py-1 rounded-full bg-[#2BA8A2] text-white border border-[#1E8C86] shadow-sm flex items-center gap-1">
+              <span class="w-1.5 h-1.5 rounded-full bg-[#FFD23F]"></span>
               <span>Dev</span>
             </button>
             <button onclick="setCandidateDemo('ai-spammer')"
-              class="text-xs font-semibold px-2 py-1 rounded-lg bg-rose-50 text-rose-800 border border-rose-200/80 hover:bg-rose-100/80 transition flex items-center gap-1">
-              <span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
+              class="f7-btn text-xs px-2.5 py-1 rounded-full bg-[#EF6C4A] text-white border border-[#D45233] shadow-sm flex items-center gap-1">
+              <span class="w-1.5 h-1.5 rounded-full bg-white"></span>
               <span>AI</span>
             </button>
           </div>
