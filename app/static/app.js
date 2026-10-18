@@ -299,7 +299,427 @@ function renderAuditResults(c) {
     tbody.appendChild(tr);
   });
 
+  // Render Git Topology Graph
+  const topo = c.topology_graph || (c.audited_repos && c.audited_repos[0] && c.audited_repos[0].topology_graph);
+  if (topo) {
+    renderTopologyGraph(topo, c);
+  }
+
   lucide.createIcons();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  GIT TOPOLOGY & CADENCE GRAPH VISUALIZER
+// ─────────────────────────────────────────────────────────────────────────────
+
+function escapeHtml(str) {
+  if (!str) return "";
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+let currentTopology = null;
+let activeTopologyCommitId = null;
+
+function renderTopologyGraph(topo, candidate = null) {
+  if (!topo) return;
+  currentTopology = topo;
+  const c = candidate || currentCandidate;
+
+  // 1. Health badge & subtitle
+  const healthBadge = document.getElementById("topology-health-badge");
+  const subtitle = document.getElementById("topology-subtitle");
+  const anomalyAlert = document.getElementById("topo-anomaly-alert");
+  const anomalyDesc = document.getElementById("topo-anomaly-desc");
+
+  const isHuman = topo.status === "verified_human";
+  if (healthBadge) {
+    if (isHuman) {
+      healthBadge.className = "px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-950 text-emerald-400 border border-emerald-800 font-mono";
+      healthBadge.textContent = "Progressive Multi-Branch DAG";
+    } else {
+      healthBadge.className = "px-2 py-0.5 rounded text-[10px] font-bold bg-rose-950 text-rose-400 border border-rose-800 font-mono";
+      healthBadge.textContent = "⚠ Flagged Anomaly (Flatline)";
+    }
+  }
+
+  if (subtitle) {
+    subtitle.textContent = topo.topology_summary || (isHuman 
+      ? "Visual DAG proof of authentic human commits vs. bulk AI fork dump"
+      : "Single bulk dump detected: zero iterative progression");
+  }
+
+  // 2. Metrics
+  const metricBranches = document.getElementById("topo-metric-branches");
+  if (metricBranches) {
+    metricBranches.textContent = `${topo.branch_count || 1} Branches · ${topo.merge_count || 0} Merges`;
+  }
+  const metricSpan = document.getElementById("topo-metric-span");
+  if (metricSpan) {
+    metricSpan.textContent = isHuman ? "Iterative Cadence" : "Instantaneous (0 Days)";
+  }
+  const metricAuthor = document.getElementById("topo-metric-author");
+  if (metricAuthor) {
+    metricAuthor.textContent = topo.author_purity || (isHuman ? "100% GPG / SSH Match" : "15% Unverified Dump");
+    metricAuthor.className = isHuman ? "font-bold text-emerald-400 text-xs sm:text-sm" : "font-bold text-rose-400 text-xs sm:text-sm";
+  }
+  const metricCadence = document.getElementById("topo-metric-cadence");
+  if (metricCadence) {
+    metricCadence.textContent = topo.cadence_rating || (isHuman ? "Normal (1.2/day)" : "Instantaneous Spike");
+    metricCadence.className = isHuman ? "font-bold text-blue-400 text-xs sm:text-sm" : "font-bold text-rose-400 text-xs sm:text-sm";
+  }
+
+  // 3. Anomaly Alert
+  if (anomalyAlert) {
+    if (isHuman) {
+      anomalyAlert.classList.add("hidden");
+    } else {
+      anomalyAlert.classList.remove("hidden");
+      if (anomalyDesc) {
+        anomalyDesc.textContent = (topo.commits && topo.commits[0] && topo.commits[0].anomaly) 
+          || "100% of code pushed in a single bulk dump. 0 branches, 0 merges, flatline cadence. Bypassed from Fast-Track queue.";
+      }
+    }
+  }
+
+  // 4. Repository switcher pills
+  const repoTabs = document.getElementById("topology-repo-tabs");
+  if (repoTabs && c && c.audited_repos && c.audited_repos.length > 0) {
+    repoTabs.innerHTML = "";
+    c.audited_repos.forEach(r => {
+      const isSelected = r.repo_name === topo.repo_name;
+      const btn = document.createElement("button");
+      btn.className = isSelected
+        ? "px-2.5 py-1 rounded-lg text-[11px] font-mono font-bold bg-blue-600 text-white shadow-sm transition"
+        : "px-2.5 py-1 rounded-lg text-[11px] font-mono font-medium bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white transition";
+      btn.innerHTML = `<i data-lucide="git-branch" class="w-3 h-3 inline mr-1"></i>${r.repo_name}`;
+      btn.onclick = () => switchTopologyRepo(r.repo_name);
+      repoTabs.appendChild(btn);
+    });
+  }
+
+  // 5. Branch Legend
+  const legend = document.getElementById("topo-branch-legend");
+  if (legend) {
+    legend.innerHTML = "";
+    const branches = topo.branches || [{"name": "main", "color": "#2563eb", "lane": 0}];
+    branches.forEach(b => {
+      const span = document.createElement("span");
+      span.className = "inline-flex items-center gap-1.5 text-[11px] font-mono text-slate-300";
+      span.innerHTML = `
+        <span class="w-2 h-2 rounded-full" style="background-color: ${b.color};"></span>
+        <span>${b.name}</span>
+      `;
+      legend.appendChild(span);
+    });
+  }
+
+  // 6. Visual SVG DAG Graph + Commit Rows
+  renderTopologyDag(topo);
+
+  // 7. Select initial commit for inspector
+  const commits = topo.commits || [];
+  if (commits.length > 0) {
+    selectTopologyCommit(commits[0].id);
+  } else {
+    const inspector = document.getElementById("topo-commit-inspector");
+    if (inspector) inspector.innerHTML = `<div class="text-slate-500">No commits recorded.</div>`;
+  }
+
+  lucide.createIcons();
+}
+
+function renderTopologyDag(topo) {
+  const viewport = document.getElementById("topology-graph-viewport");
+  if (!viewport) return;
+
+  const commits = topo.commits || [];
+  if (commits.length === 0) {
+    viewport.innerHTML = `<div class="text-xs text-slate-500 font-mono p-4">No commit history found for this repository.</div>`;
+    return;
+  }
+
+  const branches = topo.branches || [{"name": "main", "color": "#2563eb", "lane": 0}];
+  const branchMap = {};
+  branches.forEach(b => { branchMap[b.name] = b; });
+
+  const rowHeight = 44;
+  const laneWidth = 26;
+  const laneOffsetX = 18;
+  const maxLane = Math.max(...commits.map(c => c.lane || 0), 0);
+  const svgWidth = Math.max(80, (maxLane + 1) * laneWidth + 24);
+  const svgHeight = commits.length * rowHeight;
+
+  // Build commit index map
+  const commitIndexMap = {};
+  commits.forEach((c, idx) => {
+    commitIndexMap[c.id] = idx;
+    if (c.short_sha) commitIndexMap[c.short_sha] = idx;
+  });
+
+  // Generate SVG paths connecting commits
+  let pathsSvg = "";
+  commits.forEach((c, idx) => {
+    const x1 = laneOffsetX + (c.lane * laneWidth);
+    const y1 = (idx * rowHeight) + (rowHeight / 2);
+    const bColor = (branchMap[c.branch] && branchMap[c.branch].color) || "#2563eb";
+
+    const parents = c.parents || [];
+    parents.forEach(pId => {
+      const pIdx = commitIndexMap[pId];
+      if (pIdx !== undefined && pIdx > idx) {
+        const pCommit = commits[pIdx];
+        const x2 = laneOffsetX + (pCommit.lane * laneWidth);
+        const y2 = (pIdx * rowHeight) + (rowHeight / 2);
+
+        if (c.lane === pCommit.lane) {
+          pathsSvg += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${bColor}" stroke-width="2.5" stroke-linecap="round" opacity="0.85" />`;
+        } else {
+          // Smooth bezier curve for branch/merge
+          const midY = (y1 + y2) / 2;
+          pathsSvg += `<path d="M ${x1} ${y1} C ${x1} ${midY}, ${x2} ${midY}, ${x2} ${y2}" fill="none" stroke="${bColor}" stroke-width="2.5" stroke-linecap="round" opacity="0.85" />`;
+        }
+      }
+    });
+  });
+
+  // Generate Commit Nodes in SVG
+  let nodesSvg = "";
+  commits.forEach((c, idx) => {
+    const x = laneOffsetX + (c.lane * laneWidth);
+    const y = (idx * rowHeight) + (rowHeight / 2);
+    const bColor = (branchMap[c.branch] && branchMap[c.branch].color) || "#2563eb";
+    const isMerge = c.is_merge;
+    const isSpam = topo.status === "flagged_bulk_dump";
+
+    nodesSvg += `
+      <g class="cursor-pointer group" onclick="selectTopologyCommit('${c.id}')">
+        <circle id="topo-circle-halo-${c.id}" cx="${x}" cy="${y}" r="11" fill="${bColor}" opacity="0" class="transition-opacity duration-200" />
+        <circle id="topo-circle-${c.id}" cx="${x}" cy="${y}" r="${isMerge ? 6.5 : (isSpam ? 7 : 5)}"
+          fill="${isMerge ? '#0f172a' : (isSpam ? '#e11d48' : bColor)}"
+          stroke="${isMerge ? bColor : (isSpam ? '#fda4af' : '#ffffff')}"
+          stroke-width="${isMerge ? 3 : 2}"
+          class="transition-transform group-hover:scale-125 origin-center" />
+        ${isMerge ? `<circle cx="${x}" cy="${y}" r="2" fill="${bColor}" />` : ''}
+      </g>
+    `;
+  });
+
+  // Build the Rows layout
+  let rowsHtml = "";
+  commits.forEach((c) => {
+    const isMerge = c.is_merge;
+    const isSpam = topo.status === "flagged_bulk_dump";
+
+    rowsHtml += `
+      <div id="topo-commit-row-${c.id}" onclick="selectTopologyCommit('${c.id}')"
+        class="flex items-center justify-between gap-3 px-2 rounded-lg cursor-pointer transition hover:bg-slate-800/60"
+        style="height: ${rowHeight}px;">
+        
+        <div class="flex items-center gap-2.5 min-w-0">
+          <span class="px-1.5 py-0.5 rounded ${isSpam ? 'bg-rose-950 text-rose-300 border border-rose-800' : 'bg-slate-800 text-blue-400 border border-slate-700/80'} font-mono text-[10px] font-bold shrink-0">
+            ${c.short_sha}
+          </span>
+          <span class="text-xs truncate ${isMerge ? 'font-bold text-white' : (isSpam ? 'text-rose-200 font-semibold' : 'text-slate-200')}">
+            ${escapeHtml(c.message)}
+          </span>
+        </div>
+
+        <div class="flex items-center gap-3 shrink-0 text-[11px] font-mono text-slate-400">
+          <span class="hidden sm:inline ${c.ast_verified ? 'text-emerald-400' : 'text-rose-400'}">
+            ${c.ast_verified ? '✓ Verified' : '⚠ Anomaly'}
+          </span>
+          <span class="text-slate-400 hidden md:inline">${c.stats || ''}</span>
+          <span class="text-slate-500">${c.relative_time}</span>
+        </div>
+
+      </div>
+    `;
+  });
+
+  viewport.innerHTML = `
+    <div class="relative flex" style="min-height: ${svgHeight}px;">
+      <!-- SVG Track Column -->
+      <div class="shrink-0 relative" style="width: ${svgWidth}px; height: ${svgHeight}px;">
+        <svg width="${svgWidth}" height="${svgHeight}" class="absolute inset-0 pointer-events-auto">
+          ${pathsSvg}
+          ${nodesSvg}
+        </svg>
+      </div>
+
+      <!-- Commit Rows (Right Column aligned with SVG nodes) -->
+      <div class="flex-1 min-w-0 flex flex-col justify-between">
+        ${rowsHtml}
+      </div>
+    </div>
+  `;
+}
+
+function selectTopologyCommit(commitId) {
+  if (!currentTopology || !currentTopology.commits) return;
+  activeTopologyCommitId = commitId;
+
+  const c = currentTopology.commits.find(item => item.id === commitId || item.short_sha === commitId);
+  if (!c) return;
+
+  // Highlight selected SVG halo and row
+  currentTopology.commits.forEach(item => {
+    const halo = document.getElementById(`topo-circle-halo-${item.id}`);
+    if (halo) halo.setAttribute("opacity", item.id === c.id ? "0.35" : "0");
+
+    const row = document.getElementById(`topo-commit-row-${item.id}`);
+    if (row) {
+      if (item.id === c.id) {
+        row.className = "flex items-center justify-between gap-3 px-2 rounded-lg cursor-pointer transition bg-slate-800/90 border border-slate-700";
+      } else {
+        row.className = "flex items-center justify-between gap-3 px-2 rounded-lg cursor-pointer transition hover:bg-slate-800/60";
+      }
+    }
+  });
+
+  // Populate inspector
+  const inspector = document.getElementById("topo-commit-inspector");
+  if (!inspector) return;
+
+  const isHuman = currentTopology.status === "verified_human";
+  const filesList = (c.files_changed || []).map(f => `<span class="px-1.5 py-0.5 rounded bg-slate-900 border border-slate-800 text-[10px] text-slate-300 font-mono mr-1">${escapeHtml(f)}</span>`).join("");
+
+  inspector.innerHTML = `
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-2">
+      <div class="flex items-center gap-2">
+        <i data-lucide="${c.is_merge ? 'git-merge' : 'git-commit'}" class="w-4 h-4 text-blue-400"></i>
+        <span class="font-bold text-white text-xs">Commit: <span class="font-mono text-blue-400">${c.short_sha}</span></span>
+        <span class="px-2 py-0.2 rounded text-[10px] font-mono ${c.ast_verified ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' : 'bg-rose-950 text-rose-400 border border-rose-800'}">
+          ${c.ast_verified ? '✓ AST Verified' : '⚠ Anomaly Detected'}
+        </span>
+      </div>
+      <div class="text-[11px] text-slate-400 font-mono">
+        Branch: <span class="text-slate-200 font-semibold">${c.branch}</span> · ${c.relative_time} (${(c.date || '').substring(0, 10)})
+      </div>
+    </div>
+
+    <div class="text-xs text-slate-200 font-medium py-1">
+      ${escapeHtml(c.message)}
+    </div>
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 border-t border-slate-800/70 text-[11px]">
+      <div>
+        <span class="text-slate-500">Author:</span>
+        <span class="text-slate-300 font-semibold ml-1">${escapeHtml(c.author)}</span>
+        <span class="ml-1.5 ${isHuman ? 'text-emerald-400' : 'text-rose-400'} font-bold">
+          ${isHuman ? '✓ Signature Authenticated' : '⚠ Unverified Author'}
+        </span>
+      </div>
+      <div>
+        <span class="text-slate-500">Churn Stats:</span>
+        <span class="font-mono text-slate-300 ml-1">${c.stats || 'N/A'}</span>
+      </div>
+    </div>
+
+    ${c.anomaly ? `
+      <div class="rounded bg-rose-950/80 border border-rose-800 p-2 text-rose-300 text-[11px] mt-1">
+        <strong>Diagnostic Flag:</strong> ${escapeHtml(c.anomaly)}
+      </div>
+    ` : ''}
+
+    ${filesList ? `
+      <div class="pt-1 flex items-center gap-1.5 flex-wrap">
+        <span class="text-slate-500 text-[10px]">Modified Components:</span>
+        ${filesList}
+      </div>
+    ` : ''}
+  `;
+
+  lucide.createIcons();
+}
+
+function switchTopologyRepo(repoName) {
+  if (!currentCandidate || !currentCandidate.audited_repos) return;
+  const repo = currentCandidate.audited_repos.find(r => r.repo_name === repoName);
+  if (repo && repo.topology_graph) {
+    renderTopologyGraph(repo.topology_graph, currentCandidate);
+  }
+}
+
+function scrollToTopologyGraph() {
+  const el = document.getElementById("section-topology-graph-container");
+  if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+async function openTopologyModalForCandidate(username) {
+  const modal = document.getElementById("modal-status-detail");
+  const title = document.getElementById("modal-detail-title");
+  const content = document.getElementById("modal-detail-content");
+
+  title.textContent = `Git Topology Audit: @${username}`;
+  content.innerHTML = `
+    <div class="p-6 text-center text-slate-500 flex items-center justify-center gap-2">
+      <i data-lucide="loader-2" class="w-4 h-4 animate-spin text-blue-600"></i>
+      <span>Loading Git Topology DAG for @${username}...</span>
+    </div>
+  `;
+  modal.classList.remove("hidden");
+  lucide.createIcons();
+
+  try {
+    const res = await fetch(`/api/candidate/${username}/topology`);
+    if (!res.ok) throw new Error("Could not load topology");
+    const topo = await res.json();
+
+    const isHuman = topo.status === "verified_human";
+    content.innerHTML = `
+      <div class="rounded-xl border ${isHuman ? 'border-emerald-200 bg-emerald-50/70 text-emerald-950' : 'border-rose-200 bg-rose-50/70 text-rose-950'} p-3 space-y-1">
+        <div class="font-bold text-sm flex items-center gap-1.5">
+          <i data-lucide="${isHuman ? 'shield-check' : 'alert-triangle'}" class="w-4 h-4 ${isHuman ? 'text-emerald-600' : 'text-rose-600'}"></i>
+          <span>${isHuman ? '✓ Verified Human Git Topology' : '⚠ Flagged 1-Commit Bulk Dump Anomaly'}</span>
+        </div>
+        <p class="text-xs ${isHuman ? 'text-emerald-800' : 'text-rose-800'}">
+          ${topo.topology_summary}
+        </p>
+      </div>
+
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs font-mono pt-1">
+        <div class="bg-slate-50 rounded-lg p-2 border border-slate-200">
+          <span class="text-[10px] text-slate-500 block uppercase">Branches</span>
+          <span class="font-bold text-slate-900">${topo.branch_count} Branches</span>
+        </div>
+        <div class="bg-slate-50 rounded-lg p-2 border border-slate-200">
+          <span class="text-[10px] text-slate-500 block uppercase">Merges</span>
+          <span class="font-bold text-slate-900">${topo.merge_count} Merges</span>
+        </div>
+        <div class="bg-slate-50 rounded-lg p-2 border border-slate-200">
+          <span class="text-[10px] text-slate-500 block uppercase">Author Purity</span>
+          <span class="font-bold ${isHuman ? 'text-emerald-600' : 'text-rose-600'}">${topo.author_purity}</span>
+        </div>
+        <div class="bg-slate-50 rounded-lg p-2 border border-slate-200">
+          <span class="text-[10px] text-slate-500 block uppercase">Cadence</span>
+          <span class="font-bold text-blue-600">${topo.cadence_rating}</span>
+        </div>
+      </div>
+
+      <div class="space-y-1.5 pt-2">
+        <div class="text-[11px] font-bold text-slate-500 uppercase tracking-wider font-mono">Recent Commit Nodes</div>
+        <div class="space-y-1 max-h-56 overflow-y-auto pr-1">
+          ${(topo.commits || []).map(c => `
+            <div class="rounded-lg border border-slate-200 p-2 text-xs flex items-center justify-between gap-2 hover:bg-slate-50">
+              <div class="flex items-center gap-2 min-w-0">
+                <span class="px-1.5 py-0.5 rounded font-mono text-[10px] font-bold bg-slate-100 text-blue-700 border border-slate-200">${c.short_sha}</span>
+                <span class="truncate font-medium text-slate-800">${escapeHtml(c.message)}</span>
+              </div>
+              <span class="text-[10px] font-mono text-slate-400 shrink-0">${c.relative_time}</span>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `;
+    lucide.createIcons();
+  } catch (err) {
+    content.innerHTML = `<div class="p-4 text-center text-rose-600 text-xs font-mono">Failed to load Git Topology: ${err.message}</div>`;
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -346,6 +766,13 @@ function openRepoDetailModal(repoName) {
       </div>
       <p class="text-purple-800 leading-relaxed">${r.gemini_summary}</p>
     </div>` : ''}
+    <div class="pt-3 border-t border-slate-100 flex justify-end">
+      <button onclick="switchTopologyRepo('${r.repo_name}'); closeModal('modal-status-detail'); scrollToTopologyGraph();"
+        class="px-3.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-mono text-xs font-semibold flex items-center gap-1.5 transition shadow-sm active:scale-95">
+        <i data-lucide="git-fork" class="w-3.5 h-3.5 text-blue-400"></i>
+        <span>View Git Topology DAG</span>
+      </button>
+    </div>
   `;
   modal.classList.remove("hidden");
   lucide.createIcons();
@@ -449,6 +876,13 @@ function openApplicationStatusModal(appId) {
       <div class="flex justify-between border-b border-slate-100 py-1">
         <span class="text-slate-500">72h SLA Deadline:</span>
         <span class="font-mono ${isGhosted ? 'text-rose-600 font-bold' : 'text-slate-700'}">${app.sla_deadline ? new Date(app.sla_deadline).toLocaleString() : '—'}</span>
+      </div>
+      <div class="pt-3 border-t border-slate-100 flex justify-end">
+        <button onclick="openTopologyModalForCandidate('${app.github_username}'); closeModal('modal-status-detail');"
+          class="px-3.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-mono text-xs font-semibold flex items-center gap-1.5 transition shadow-sm active:scale-95">
+          <i data-lucide="git-fork" class="w-3.5 h-3.5 text-blue-400"></i>
+          <span>Inspect Candidate Git Topology</span>
+        </button>
       </div>
     </div>
   `;
@@ -1524,9 +1958,13 @@ function renderEmployerQueues(data) {
       </div>
 
       <div class="pt-2 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-        <div class="flex items-center gap-1.5 text-xs text-slate-500">
-          <i data-lucide="shield-check" class="w-3.5 h-3.5 text-emerald-600"></i>
-          <span>Git Provenance Verified · 5-Min Bug Fix Cleared</span>
+        <div class="flex items-center gap-2 flex-wrap text-xs text-slate-500">
+          <span class="inline-flex items-center gap-1"><i data-lucide="shield-check" class="w-3.5 h-3.5 text-emerald-600"></i><span>Git Verified · 5-Min Test Cleared</span></span>
+          <button onclick="event.stopPropagation(); openTopologyModalForCandidate('${app.github_username}')"
+            class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-mono bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 transition">
+            <i data-lucide="git-fork" class="w-3 h-3 text-blue-600"></i>
+            <span>Inspect Topology</span>
+          </button>
         </div>
         <div>${actionBtns}</div>
       </div>
@@ -1548,7 +1986,11 @@ function renderEmployerQueues(data) {
       <p class="text-[11px] text-slate-500">${spam.headline}</p>
       <div class="flex items-center justify-between text-[10px] text-slate-400 pt-0.5">
         <span>Git: ${spam.git_provenance}</span>
-        <span class="text-rose-600">${spam.warning}</span>
+        <button onclick="event.stopPropagation(); openTopologyModalForCandidate('ai-spammer')"
+          class="text-rose-600 hover:text-rose-800 hover:underline flex items-center gap-1">
+          <i data-lucide="alert-triangle" class="w-3 h-3"></i>
+          <span>${spam.warning}</span>
+        </button>
       </div>
     `;
     listCold.appendChild(el);

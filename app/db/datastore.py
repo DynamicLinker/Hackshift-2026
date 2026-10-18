@@ -98,17 +98,24 @@ class DataStore:
 
         # ── Candidates ────────────────────────────────────────────────────────
         # Primary candidate for Candidate Portal (matches default input iiitd-dev)
+        from app.services.git_analyzer import DEMO_TOPOLOGIES, DEMO_PROFILES, RepositoryAudit
+        p_iiitd = DEMO_PROFILES["iiitd-dev"]
         c_me = CandidateProfile(
             id="cand_iiitd-dev",
             github_username="iiitd-dev",
-            full_name="Aarav Sharma",
-            avatar_url="https://avatars.githubusercontent.com/u/8942111?v=4",
-            bio="CS student at IIIT Delhi building distributed systems & backend APIs",
+            full_name=p_iiitd["full_name"],
+            avatar_url=p_iiitd["avatar_url"],
+            bio=p_iiitd["bio"],
             is_bot=False,
-            git_provenance_score=94.5,
-            commit_topology_status="verified_human",
-            credibility_score=95.0,
-            fast_track_qualified=True,
+            git_provenance_score=p_iiitd["git_provenance_score"],
+            commit_topology_status=p_iiitd["commit_topology_status"],
+            credibility_score=p_iiitd["credibility_score"],
+            fast_track_qualified=p_iiitd["fast_track_qualified"],
+            audited_repos=[
+                RepositoryAudit(**r, topology_graph=DEMO_TOPOLOGIES.get(r["repo_name"]))
+                for r in p_iiitd["audited_repos"]
+            ],
+            topology_graph=DEMO_TOPOLOGIES.get("delhi-transit-stream"),
         )
         c2 = CandidateProfile(
             id="cand-ananya",

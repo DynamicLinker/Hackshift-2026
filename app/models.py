@@ -32,6 +32,7 @@ class RepositoryAudit(BaseModel):
     provenance_rating: float  # 0 to 100
     repo_url: Optional[str] = None
     gemini_summary: Optional[str] = None
+    topology_graph: Optional[Dict[str, Any]] = None
 
 class CandidateProfile(BaseModel):
     id: str
@@ -49,6 +50,7 @@ class CandidateProfile(BaseModel):
     ownership_status: str = "verified_contributor"
     author_match_rate: float = 100.0
     gemini_analysis: Optional[str] = None
+    topology_graph: Optional[Dict[str, Any]] = None
 
 class AssessmentChallenge(BaseModel):
     id: str

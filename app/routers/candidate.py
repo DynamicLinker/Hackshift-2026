@@ -75,6 +75,30 @@ def get_candidate_profile(candidate_id: str):
     return candidate
 
 
+@router.get("/{candidate_id}/topology")
+async def get_candidate_topology(candidate_id: str, repo_name: Optional[str] = None):
+    """Retrieves the Git Topology Graph for a candidate or specific audited repository."""
+    clean_user = candidate_id.strip().lstrip("@")
+    candidate = db.get_candidate(candidate_id) or db.get_candidate(f"cand_{clean_user}")
+    
+    if not candidate or not candidate.topology_graph:
+        candidate = await analyze_github_user(clean_user)
+        db.save_candidate(candidate)
+
+    if repo_name:
+        for r in candidate.audited_repos:
+            if r.repo_name == repo_name and r.topology_graph:
+                return r.topology_graph
+
+    if candidate.topology_graph:
+        return candidate.topology_graph
+
+    if candidate.audited_repos and candidate.audited_repos[0].topology_graph:
+        return candidate.audited_repos[0].topology_graph
+
+    raise HTTPException(status_code=404, detail="No Git topology found for this candidate.")
+
+
 @router.post("/assessment/start", response_model=AssessmentChallenge)
 def start_assessment_challenge(payload: StartAssessmentRequest):
     """Generates a dynamic 5-minute micro-assessment for the candidate."""
