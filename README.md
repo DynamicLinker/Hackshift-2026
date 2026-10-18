@@ -144,13 +144,3 @@ pytest tests/
 python scripts/verify_demo.py
 ```
 
----
-
-## 🏆 7. Hackathon Stage Demo Walkthrough (Two-Tab Setup)
-
-1. **Tab 1 (Employer)**: Open `https://hackshift-2026.onrender.com/?role=employer`. Show the Acme Systems opening overwhelmed with **2,140 cold resumes**.
-2. **Tab 2 (Candidate)**: Open `https://hackshift-2026.onrender.com/?role=candidate`.
-   - Audit `@iiitd-dev`: Show the visual **Git Topology DAG Tree** proving authentic multi-branch iterative human cadence.
-   - Contrast with `@ai-spammer`: Show the flatline 1-commit bulk dump anomaly flagged with 21% provenance.
-3. **Take Challenge**: Click **"Solve 5-Min Challenge"**. Show the dynamically generated question on Aarav's own `delhi-transit-stream` repo, solve the concurrency bug in the sandbox, and pass (100/100).
-4. **The Vault & SLA**: Return to Tab 1. Watch Aarav appear at **#1 on the Fast-Track Queue**. Click **"Schedule Interview"** with 1 click, fulfilling the 72-hour anti-ghosting SLA.
