@@ -892,6 +892,24 @@ DEMO_PROFILES: Dict[str, Dict[str, Any]] = {
     },
 }
 
+USER_ALIASES: Dict[str, str] = {
+    "aarav": "iiitd-dev",
+    "aarav@iiitd.ac.in": "iiitd-dev",
+    "aaravsharma": "iiitd-dev",
+    "aarav-sharma": "iiitd-dev",
+    "iiitd": "iiitd-dev",
+    "candidate": "iiitd-dev",
+    "rohan": "fastapi-ninja",
+    "rohan-verma": "fastapi-ninja",
+    "rohanverma": "fastapi-ninja",
+    "ninja": "fastapi-ninja",
+    "spammer": "ai-spammer",
+    "bot": "ai-spammer",
+    "autocoder": "ai-spammer",
+}
+
+_PROFILE_CACHE: Dict[str, CandidateProfile] = {}
+
 
 def _evaluate_commits_topology(commits: List[Dict[str, Any]]) -> Tuple[str, float]:
     """Analyzes commit list history for progressive development vs bulk dumps."""
@@ -1077,7 +1095,7 @@ def clone_and_inspect_repo(
         os.makedirs(os.path.dirname(cache_dir), exist_ok=True)
         try:
             cmd = ["git", "clone", "--depth", "35", repo_url, cache_dir]
-            subprocess.run(cmd, capture_output=True, text=True, timeout=12)
+            subprocess.run(cmd, capture_output=True, text=True, timeout=3)
         except Exception:
             pass
 
@@ -1188,6 +1206,12 @@ async def analyze_github_user(
     If gemini_api_key is provided, augments with AI architectural verification.
     """
     clean_user = username.strip().lstrip("@").lower() if username else "iiitd-dev"
+    if clean_user in USER_ALIASES:
+        clean_user = USER_ALIASES[clean_user]
+
+    # Fast in-memory cache check (instantaneous 0ms for repeated audits)
+    if not repo_url and clean_user in _PROFILE_CACHE:
+        return copy.deepcopy(_PROFILE_CACHE[clean_user])
 
     # If direct repo URL provided, clone and analyze it locally!
     if repo_url and repo_url.strip():
@@ -1197,7 +1221,7 @@ async def analyze_github_user(
             audit.gemini_summary = gemini_text
 
         is_verified = audit.provenance_rating >= 70.0
-        return CandidateProfile(
+        profile = CandidateProfile(
             id=f"cand_{clean_user}",
             github_username=clean_user,
             full_name=f"{clean_user.capitalize()} (Cloned Repo Audit)",
@@ -1215,6 +1239,7 @@ async def analyze_github_user(
             gemini_analysis=gemini_text,
             topology_graph=audit.topology_graph,
         )
+        return profile
 
     # 1. Check curated demo profiles first for instantaneous zero-latency stage demo
     if clean_user in DEMO_PROFILES:
@@ -1237,7 +1262,7 @@ async def analyze_github_user(
             gemini_text = await call_gemini_analysis(audited[0].repo_name, "feat: implement caching\nfix: race condition", audited[0].key_technologies, gemini_api_key)
 
         primary_topo = audited[0].topology_graph if audited else None
-        return CandidateProfile(
+        profile = CandidateProfile(
             id=f"cand_{clean_user}",
             github_username=clean_user,
             full_name=p["full_name"],
@@ -1254,10 +1279,12 @@ async def analyze_github_user(
             gemini_analysis=gemini_text,
             topology_graph=primary_topo,
         )
+        _PROFILE_CACHE[clean_user] = profile
+        return profile
 
-    # 2. Attempt live GitHub API queries
+    # 2. Fast live GitHub API inspection (low timeout: 0.8s) so the UI never stalls
     try:
-        async with httpx.AsyncClient(timeout=3.5) as client:
+        async with httpx.AsyncClient(timeout=0.8) as client:
             user_res = await client.get(
                 f"https://api.github.com/users/{clean_user}",
                 headers={"User-Agent": "ProofHired-Provenance/1.0"}
@@ -1266,10 +1293,10 @@ async def analyze_github_user(
             if user_res.status_code == 200:
                 user_data = user_res.json()
                 repos_res = await client.get(
-                    f"https://api.github.com/users/{clean_user}/repos?sort=updated&per_page=4",
+                    f"https://api.github.com/users/{clean_user}/repos?sort=updated&per_page=3",
                     headers={"User-Agent": "ProofHired-Provenance/1.0"}
                 )
-                repos_data = repos_res.json() if repos_res.status_code == 200 else []
+                repos_data = repos_res.json() if repos_res.status_code == 200 and isinstance(repos_res.json(), list) else []
                 
                 audited_repos: List[RepositoryAudit] = []
                 total_provenance = 0.0
@@ -1278,11 +1305,14 @@ async def analyze_github_user(
                     repo_name = r.get("name", "repo")
                     lang = r.get("language") or "Python"
                     
-                    commits_res = await client.get(
-                        f"https://api.github.com/repos/{clean_user}/{repo_name}/commits?per_page=10",
-                        headers={"User-Agent": "ProofHired-Provenance/1.0"}
-                    )
-                    commits_data = commits_res.json() if commits_res.status_code == 200 and isinstance(commits_res.json(), list) else []
+                    try:
+                        commits_res = await client.get(
+                            f"https://api.github.com/repos/{clean_user}/{repo_name}/commits?per_page=8",
+                            headers={"User-Agent": "ProofHired-Provenance/1.0"}
+                        )
+                        commits_data = commits_res.json() if commits_res.status_code == 200 and isinstance(commits_res.json(), list) else []
+                    except Exception:
+                        commits_data = []
                     
                     dist, rating = _evaluate_commits_topology(commits_data)
                     tech_tags = [lang]
@@ -1316,7 +1346,7 @@ async def analyze_github_user(
                 avg_provenance = round(total_provenance / len(audited_repos), 1) if audited_repos else 60.0
                 is_verified = avg_provenance >= 70.0
 
-                return CandidateProfile(
+                profile = CandidateProfile(
                     id=f"cand_{clean_user}",
                     github_username=clean_user,
                     full_name=user_data.get("name") or clean_user,
@@ -1330,7 +1360,11 @@ async def analyze_github_user(
                     fast_track_qualified=is_verified,
                     topology_graph=audited_repos[0].topology_graph if audited_repos else None,
                 )
+                _PROFILE_CACHE[clean_user] = profile
+                return profile
     except Exception:
         pass
 
-    return _synthesize_fallback_profile(clean_user)
+    fallback_profile = _synthesize_fallback_profile(clean_user)
+    _PROFILE_CACHE[clean_user] = fallback_profile
+    return fallback_profile

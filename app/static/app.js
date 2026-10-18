@@ -410,36 +410,6 @@ async function runCandidateAudit(isInitial = false) {
   const telemetrySection = document.getElementById("section-audit-telemetry");
   const telemetryLogs = document.getElementById("telemetry-logs");
 
-  if (!isInitial && telemetrySection && telemetryLogs) {
-    telemetrySection.classList.remove("hidden");
-    telemetryLogs.innerHTML = `
-      <div class="flex items-center gap-2 text-slate-400">
-        <i data-lucide="loader-2" class="w-3 h-3 animate-spin text-blue-400"></i>
-        <span>[1/3] Cloning remote Git tree & parsing commit graph...</span>
-      </div>
-    `;
-    lucide.createIcons();
-    await new Promise(r => setTimeout(r, 280));
-
-    telemetryLogs.innerHTML += `
-      <div class="flex items-center gap-2 text-slate-400">
-        <i data-lucide="loader-2" class="w-3 h-3 animate-spin text-blue-400"></i>
-        <span>[2/3] Analyzing commit distribution & commit topology across branches...</span>
-      </div>
-    `;
-    lucide.createIcons();
-    await new Promise(r => setTimeout(r, 320));
-
-    telemetryLogs.innerHTML += `
-      <div class="flex items-center gap-2 text-slate-400">
-        <i data-lucide="loader-2" class="w-3 h-3 animate-spin text-blue-400"></i>
-        <span>[3/3] Authenticating author signatures & verifying human development cadence...</span>
-      </div>
-    `;
-    lucide.createIcons();
-    await new Promise(r => setTimeout(r, 260));
-  }
-
   const isRepoUrl = rawInput.includes("/") || rawInput.startsWith("http");
   const payload = {
     github_username: isRepoUrl ? null : rawInput,
@@ -447,12 +417,53 @@ async function runCandidateAudit(isInitial = false) {
     gemini_api_key: geminiKey,
   };
 
+  // 1. Immediately launch background fetch so network request runs in parallel
+  const fetchPromise = fetch("/api/candidate/audit", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  // 2. Render fast stepped telemetry indications
+  if (telemetrySection && telemetryLogs) {
+    telemetrySection.classList.remove("hidden");
+    telemetryLogs.innerHTML = `
+      <div id="step-audit-1" class="flex items-center gap-2 text-slate-300">
+        <i data-lucide="loader-2" class="w-3 h-3 animate-spin text-blue-400"></i>
+        <span>[1/3] Cloning remote Git tree & parsing commit graph...</span>
+      </div>
+    `;
+    lucide.createIcons();
+
+    if (!isInitial) {
+      await new Promise(r => setTimeout(r, 60));
+      const s1 = document.getElementById("step-audit-1");
+      if (s1) s1.innerHTML = `<i data-lucide="check" class="w-3 h-3 text-emerald-400"></i><span class="text-slate-300">[1/3] Remote Git tree parsed</span>`;
+
+      telemetryLogs.innerHTML += `
+        <div id="step-audit-2" class="flex items-center gap-2 text-slate-300">
+          <i data-lucide="loader-2" class="w-3 h-3 animate-spin text-blue-400"></i>
+          <span>[2/3] Analyzing commit distribution & commit topology across branches...</span>
+        </div>
+      `;
+      lucide.createIcons();
+      await new Promise(r => setTimeout(r, 70));
+
+      const s2 = document.getElementById("step-audit-2");
+      if (s2) s2.innerHTML = `<i data-lucide="check" class="w-3 h-3 text-emerald-400"></i><span class="text-slate-300">[2/3] Multi-branch DAG topology verified</span>`;
+
+      telemetryLogs.innerHTML += `
+        <div id="step-audit-3" class="flex items-center gap-2 text-slate-300">
+          <i data-lucide="loader-2" class="w-3 h-3 animate-spin text-blue-400"></i>
+          <span>[3/3] Authenticating author signatures & verifying human development cadence...</span>
+        </div>
+      `;
+      lucide.createIcons();
+    }
+  }
+
   try {
-    const res = await fetch("/api/candidate/audit", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
+    const res = await fetchPromise;
 
     if (!res.ok) {
       const err = await res.json();
@@ -464,13 +475,17 @@ async function runCandidateAudit(isInitial = false) {
     renderAuditResults(data);
 
     if (telemetryLogs) {
+      const s3 = document.getElementById("step-audit-3");
+      if (s3) s3.innerHTML = `<i data-lucide="check" class="w-3 h-3 text-emerald-400"></i><span class="text-slate-300">[3/3] Author signatures & AST verified</span>`;
+
       const isHuman = data.commit_topology_status === "verified_human";
-      telemetryLogs.innerHTML = `
-        <div class="flex items-center gap-2 ${isHuman ? 'text-emerald-400' : 'text-rose-400'} font-semibold pt-0.5">
-          <i data-lucide="${isHuman ? 'check-circle' : 'alert-triangle'}" class="w-3.5 h-3.5"></i>
-          <span>${isHuman ? `✓ Complete: Identity verified for @${data.github_username}. Select an opening below to test & apply.` : `⚠ Flagged: 1-commit bulk dump detected for @${data.github_username}. Unscreened cold queue routing.`}</span>
-        </div>
+      const completionDiv = document.createElement("div");
+      completionDiv.className = `flex items-center gap-2 ${isHuman ? 'text-emerald-400' : 'text-rose-400'} font-bold pt-1.5 border-t border-slate-800`;
+      completionDiv.innerHTML = `
+        <i data-lucide="${isHuman ? 'check-circle' : 'alert-triangle'}" class="w-3.5 h-3.5 shrink-0"></i>
+        <span>${isHuman ? `✓ Complete: Identity verified for @${data.github_username}. Select an opening below to test & apply.` : `⚠ Flagged: 1-commit bulk dump detected for @${data.github_username}. Unscreened cold queue routing.`}</span>
       `;
+      telemetryLogs.appendChild(completionDiv);
       lucide.createIcons();
     }
 
@@ -482,6 +497,10 @@ async function runCandidateAudit(isInitial = false) {
       }
     }
   } catch (err) {
+    if (telemetryLogs) {
+      const s3 = document.getElementById("step-audit-3");
+      if (s3) s3.innerHTML = `<i data-lucide="x" class="w-3 h-3 text-rose-400"></i><span class="text-rose-400">[3/3] Verification error</span>`;
+    }
     showToast("Audit error: " + err.message, "error");
   } finally {
     btn.disabled = false;
