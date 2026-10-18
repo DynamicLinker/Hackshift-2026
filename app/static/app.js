@@ -414,7 +414,6 @@ async function runCandidateAudit(isInitial = false) {
   const payload = {
     github_username: isRepoUrl ? null : rawInput,
     repo_url: isRepoUrl ? rawInput : null,
-    gemini_api_key: geminiKey,
   };
 
   // 1. Immediately launch background fetch so network request runs in parallel
@@ -495,6 +494,7 @@ async function runCandidateAudit(isInitial = false) {
       } else {
         showToast(`Flagged: @${data.github_username} routed to unscreened cold queue due to single bulk dump.`, "warn");
       }
+      setTimeout(() => scrollToTopologyGraph(), 100);
     }
   } catch (err) {
     if (telemetryLogs) {
